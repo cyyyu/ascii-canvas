@@ -1,6 +1,8 @@
 "use client";
 
 import { useLayersStore } from "@/store";
+import { Button } from "@/components/ui/button";
+import { Trash2, Layers } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -23,9 +25,10 @@ import { CSS } from "@dnd-kit/utilities";
 interface SortableLayerItemProps {
   layer: { id: string; canvas: string[][] };
   onRemove: (id: string) => void;
+  index: number;
 }
 
-function SortableLayerItem({ layer, onRemove }: SortableLayerItemProps) {
+function SortableLayerItem({ layer, onRemove, index }: SortableLayerItemProps) {
   const {
     attributes,
     listeners,
@@ -47,23 +50,25 @@ function SortableLayerItem({ layer, onRemove }: SortableLayerItemProps) {
     <li
       ref={setNodeRef}
       style={style}
-      className="flex items-center justify-between bg-gray-700 p-3 rounded hover:bg-gray-600 transition-colors"
+      className="flex items-center justify-between bg-gray-700 p-2 rounded hover:bg-gray-600 transition-colors"
       onMouseEnter={() => setHoveredLayer(layer.id)}
       onMouseLeave={() => setHoveredLayer(null)}
     >
       <div 
-        className="flex items-center flex-1 cursor-move"
+        className="flex items-center flex-1 cursor-move min-w-0"
         {...attributes}
         {...listeners}
       >
-        <span className="text-white">{layer.id}</span>
+        <span className="text-gray-400 text-sm font-mono mr-2 flex-shrink-0">{index}</span>
+        <span className="text-white truncate">{layer.id}</span>
       </div>
-      <button
-        className="text-red-500 hover:text-red-700 ml-2"
+      <Button
+        variant="destructive"
+        size="icon"
         onClick={() => onRemove(layer.id)}
       >
-        Remove
-      </button>
+        <Trash2 className="h-4 w-4" />
+      </Button>
     </li>
   );
 }
@@ -93,36 +98,42 @@ export default function Sidebar() {
   }
 
   return (
-    <div className="flex h-full w-64 flex-col bg-gray-800 p-4 text-white shrink-0">
-      <button
-        className="mb-4 rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+    <div className="flex h-full w-64 flex-col bg-gray-800 p-3 text-white shrink-0">
+      <h1 className="text-2xl font-bold mb-4">Ascii Canvas</h1>
+      <Button
+        variant="destructive"
+        className="mb-4"
         onClick={clearAllLayers}
         disabled={layers.length === 0}
       >
+        <Layers className="h-4 w-4 mr-2" />
         Clear All Layers
-      </button>
+      </Button>
       <h2 className="mb-4 text-xl font-bold">Layers</h2>
       
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={layers.map(layer => layer.id)}
-          strategy={verticalListSortingStrategy}
+      <div className="flex-1 min-h-0">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
         >
-          <ul className="space-y-2">
-            {layers.map((layer) => (
-              <SortableLayerItem
-                key={layer.id}
-                layer={layer}
-                onRemove={removeLayer}
-              />
-            ))}
-          </ul>
-        </SortableContext>
-      </DndContext>
+          <SortableContext
+            items={layers.map(layer => layer.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <ul className="space-y-2 overflow-y-auto max-h-full">
+              {layers.map((layer, index) => (
+                <SortableLayerItem
+                  key={layer.id}
+                  layer={layer}
+                  onRemove={removeLayer}
+                  index={index + 1}
+                />
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
+      </div>
     </div>
   );
 }
