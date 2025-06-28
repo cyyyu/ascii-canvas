@@ -39,6 +39,7 @@ const SHAPE_CHARS = {
 
 export default function Canvas() {
   const layers = useLayersStore((state) => state.layers);
+  const hoveredLayerId = useLayersStore((state) => state.hoveredLayerId);
   const addLayer = useLayersStore((state) => state.addLayer);
   const updateLayer = useLayersStore((state) => state.updateLayer);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -316,6 +317,13 @@ export default function Canvas() {
     return mergedCanvas;
   };
 
+  // Get the hovered layer canvas for highlighting
+  const getHoveredLayerCanvas = () => {
+    if (!hoveredLayerId) return null;
+    const hoveredLayer = layers.find(layer => layer.id === hoveredLayerId);
+    return hoveredLayer ? hoveredLayer.canvas : null;
+  };
+
   // Handle mouse down
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const coords = getCanvasCoords(e.clientX, e.clientY);
@@ -470,6 +478,19 @@ export default function Canvas() {
       });
     });
 
+    // Draw hovered layer in red if there is one
+    const hoveredCanvas = getHoveredLayerCanvas();
+    if (hoveredCanvas) {
+      ctx.fillStyle = "#ff0000";
+      hoveredCanvas.forEach((row, rowIndex) => {
+        row.forEach((cell, colIndex) => {
+          if (cell !== " ") {
+            ctx.fillText(cell, colIndex * CELL_WIDTH, rowIndex * CELL_HEIGHT);
+          }
+        });
+      });
+    }
+
     // Draw text cursor if in text mode
     if (selectedShape?.type === "text" && cursorPos) {
       ctx.fillStyle = "#0000ff";
@@ -480,7 +501,7 @@ export default function Canvas() {
         CELL_HEIGHT
       );
     }
-  }, [layers, selectedShape, cursorPos]);
+  }, [layers, selectedShape, cursorPos, hoveredLayerId]);
 
   return (
     <canvas

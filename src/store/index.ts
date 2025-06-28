@@ -7,15 +7,18 @@ interface Layer {
 
 interface LayersStore {
   layers: Layer[];
+  hoveredLayerId: string | null;
   addLayer: (layer: Layer) => void;
   removeLayer: (id: string) => void;
   updateLayer: (id: string, canvas: string[][]) => void;
   reorderLayers: (fromIndex: number, toIndex: number) => void;
   clearAllLayers: () => void;
+  setHoveredLayer: (id: string | null) => void;
 }
 
 export const useLayersStore = create<LayersStore>((set) => ({
   layers: [],
+  hoveredLayerId: null,
   addLayer: (layer) => set((state) => ({ layers: [...state.layers, layer] })),
   removeLayer: (id) =>
     set((state) => ({
@@ -35,6 +38,7 @@ export const useLayersStore = create<LayersStore>((set) => ({
       return { layers };
     }),
   clearAllLayers: () => set({ layers: [] }),
+  setHoveredLayer: (id) => set({ hoveredLayerId: id }),
 }));
 
 interface Shape {

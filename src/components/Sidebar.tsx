@@ -35,6 +35,8 @@ function SortableLayerItem({ layer, onRemove }: SortableLayerItemProps) {
     isDragging,
   } = useSortable({ id: layer.id });
 
+  const setHoveredLayer = useLayersStore((state) => state.setHoveredLayer);
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -45,17 +47,20 @@ function SortableLayerItem({ layer, onRemove }: SortableLayerItemProps) {
     <li
       ref={setNodeRef}
       style={style}
-      className="flex items-center justify-between bg-gray-700 p-3 rounded cursor-move hover:bg-gray-600 transition-colors"
-      {...attributes}
-      {...listeners}
+      className="flex items-center justify-between bg-gray-700 p-3 rounded hover:bg-gray-600 transition-colors"
+      onMouseEnter={() => setHoveredLayer(layer.id)}
+      onMouseLeave={() => setHoveredLayer(null)}
     >
-      <span className="text-white">{layer.id}</span>
+      <div 
+        className="flex items-center flex-1 cursor-move"
+        {...attributes}
+        {...listeners}
+      >
+        <span className="text-white">{layer.id}</span>
+      </div>
       <button
         className="text-red-500 hover:text-red-700 ml-2"
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove(layer.id);
-        }}
+        onClick={() => onRemove(layer.id)}
       >
         Remove
       </button>
@@ -67,7 +72,6 @@ export default function Sidebar() {
   const layers = useLayersStore((state) => state.layers);
   const reorderLayers = useLayersStore((state) => state.reorderLayers);
   const removeLayer = useLayersStore((state) => state.removeLayer);
-  const addLayer = useLayersStore((state) => state.addLayer);
   const clearAllLayers = useLayersStore((state) => state.clearAllLayers);
 
   const sensors = useSensors(
@@ -119,20 +123,6 @@ export default function Sidebar() {
           </ul>
         </SortableContext>
       </DndContext>
-
-      <button
-        className="mt-4 rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
-        onClick={() =>
-          addLayer({
-            id: `layer-${layers.length}`,
-            canvas: Array.from({ length: 100 }, () =>
-              Array(100).fill(Math.random() > 0.5 ? "X" : "O"),
-            ),
-          })
-        }
-      >
-        Add Layer
-      </button>
     </div>
   );
 }
