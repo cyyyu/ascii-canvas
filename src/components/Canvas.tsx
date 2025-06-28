@@ -189,6 +189,27 @@ export default function Canvas() {
     return canvas;
   };
 
+  // Merge all layers into a single canvas array
+  const mergeLayers = () => {
+    const mergedCanvas = Array.from({ length: CANVAS_ROWS }, () =>
+      Array.from({ length: CANVAS_COLS }, () => " ")
+    );
+
+    // Process layers in order (older first, newer last)
+    // Newer layers will overwrite older ones
+    layers.forEach((layer) => {
+      layer.canvas.forEach((row, rowIndex) => {
+        row.forEach((cell, colIndex) => {
+          if (cell !== " ") {
+            mergedCanvas[rowIndex][colIndex] = cell;
+          }
+        });
+      });
+    });
+
+    return mergedCanvas;
+  };
+
   // Handle mouse down
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!selectedShape) return;
@@ -218,18 +239,17 @@ export default function Canvas() {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Draw existing layers
-    layers.forEach((layer) => {
-      layer.canvas.forEach((row, rowIndex) => {
-        row.forEach((cell, colIndex) => {
-          if (cell !== " ") {
-            ctx.fillStyle = "#000000";
-            ctx.font = `${CELL_HEIGHT}px monospace`;
-            ctx.textAlign = "left";
-            ctx.textBaseline = "top";
-            ctx.fillText(cell, colIndex * CELL_WIDTH, rowIndex * CELL_HEIGHT);
-          }
-        });
+    // Draw merged layers
+    const mergedCanvas = mergeLayers();
+    mergedCanvas.forEach((row, rowIndex) => {
+      row.forEach((cell, colIndex) => {
+        if (cell !== " ") {
+          ctx.fillStyle = "#000000";
+          ctx.font = `${CELL_HEIGHT}px monospace`;
+          ctx.textAlign = "left";
+          ctx.textBaseline = "top";
+          ctx.fillText(cell, colIndex * CELL_WIDTH, rowIndex * CELL_HEIGHT);
+        }
       });
     });
 
@@ -323,18 +343,17 @@ export default function Canvas() {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Draw each layer
-    layers.forEach((layer) => {
-      layer.canvas.forEach((row, rowIndex) => {
-        row.forEach((cell, colIndex) => {
-          if (cell !== " ") {
-            ctx.fillStyle = "#000000";
-            ctx.font = `${CELL_HEIGHT}px monospace`;
-            ctx.textAlign = "left";
-            ctx.textBaseline = "top";
-            ctx.fillText(cell, colIndex * CELL_WIDTH, rowIndex * CELL_HEIGHT);
-          }
-        });
+    // Draw merged layers
+    const mergedCanvas = mergeLayers();
+    mergedCanvas.forEach((row, rowIndex) => {
+      row.forEach((cell, colIndex) => {
+        if (cell !== " ") {
+          ctx.fillStyle = "#000000";
+          ctx.font = `${CELL_HEIGHT}px monospace`;
+          ctx.textAlign = "left";
+          ctx.textBaseline = "top";
+          ctx.fillText(cell, colIndex * CELL_WIDTH, rowIndex * CELL_HEIGHT);
+        }
       });
     });
   }, [layers]);

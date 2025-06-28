@@ -13,4 +13,5 @@
 ## Project Context
 - This is an ASCII Canvas project with Next.js
 - Main components: Canvas, CanvasContainer, CanvasToolbar, Sidebar
-- Uses TypeScript and modern React patterns 
+- Uses TypeScript and modern React patterns
+- Use bun for package management (bun add, bun install, etc.) 
