@@ -40,6 +40,7 @@ const SHAPE_CHARS = {
 export default function Canvas() {
   const layers = useLayersStore((state) => state.layers);
   const addLayer = useLayersStore((state) => state.addLayer);
+  const updateLayer = useLayersStore((state) => state.updateLayer);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const selectedShape = useShapeStore((state) => state.selectedShape);
 
@@ -47,6 +48,8 @@ export default function Canvas() {
   const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(
     null
   );
+  const [textLayerId, setTextLayerId] = useState<string | null>(null);
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
 
   // Get canvas coordinates from mouse position
   const getCanvasCoords = (clientX: number, clientY: number) => {
@@ -70,6 +73,109 @@ export default function Canvas() {
 
     return { x: clampedX, y: clampedY };
   };
+
+  // Find next available position for text with collision detection
+  const findNextTextPositionWithCollision = (currentX: number, currentY: number): { x: number; y: number } => {
+    let x = currentX;
+    let y = currentY;
+
+    // Always allow the current position (for overwriting)
+    // Only check for collisions when moving to the next position
+    if (x >= CANVAS_COLS) {
+      x = 0;
+      y++;
+    }
+
+    // If we're at the end of canvas, wrap to beginning
+    if (y >= CANVAS_ROWS) {
+      y = 0;
+    }
+
+    return { x, y };
+  };
+
+  // Handle text input
+  const handleTextInput = (char: string) => {
+    if (!selectedShape || selectedShape.type !== "text" || !cursorPos) return;
+
+    // Ensure we have a text layer
+    let textLayer = layers.find(layer => layer.id === textLayerId);
+    if (!textLayer) {
+      textLayer = {
+        id: `text-layer-${Date.now()}`,
+        canvas: Array.from({ length: CANVAS_ROWS }, () =>
+          Array.from({ length: CANVAS_COLS }, () => " ")
+        ),
+      };
+      addLayer(textLayer);
+      setTextLayerId(textLayer.id);
+    }
+
+    // Create a copy of the text layer canvas
+    const newCanvas = textLayer.canvas.map(row => [...row]);
+
+    // Handle special characters
+    if (char === "Backspace") {
+      // Move cursor back and clear the cell
+      let newX = cursorPos.x - 1;
+      let newY = cursorPos.y;
+      
+      if (newX < 0) {
+        newX = CANVAS_COLS - 1;
+        newY = Math.max(0, newY - 1);
+      }
+      
+      if (newY >= 0 && newX >= 0) {
+        newCanvas[newY][newX] = " ";
+        setCursorPos({ x: newX, y: newY });
+      }
+    } else if (char === "Enter") {
+      // Move to next line
+      const nextPos = findNextTextPositionWithCollision(0, cursorPos.y + 1);
+      setCursorPos(nextPos);
+    } else if (char.length === 1) {
+      // Regular character
+      newCanvas[cursorPos.y][cursorPos.x] = char;
+      
+      // Move cursor to next position with collision detection
+      const nextPos = findNextTextPositionWithCollision(cursorPos.x + 1, cursorPos.y);
+      setCursorPos(nextPos);
+    }
+
+    // Update the text layer
+    updateLayer(textLayer.id, newCanvas);
+  };
+
+  // Handle keyboard events
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (!selectedShape || selectedShape.type !== "text") return;
+
+    e.preventDefault();
+
+    if (e.key === "Backspace") {
+      handleTextInput("Backspace");
+    } else if (e.key === "Enter") {
+      handleTextInput("Enter");
+    } else if (e.key.length === 1) {
+      handleTextInput(e.key);
+    }
+  };
+
+  // Set up keyboard event listeners
+  useEffect(() => {
+    if (selectedShape?.type === "text") {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [selectedShape, cursorPos, textLayerId, layers]);
+
+  // Reset text layer when switching away from text tool
+  useEffect(() => {
+    if (selectedShape?.type !== "text") {
+      setTextLayerId(null);
+      setCursorPos(null);
+    }
+  }, [selectedShape]);
 
   // Generate ASCII characters for rectangle
   const generateRectangle = (
@@ -212,12 +318,19 @@ export default function Canvas() {
 
   // Handle mouse down
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!selectedShape) return;
-
     const coords = getCanvasCoords(e.clientX, e.clientY);
     if (!coords) return;
 
     console.log(`Mouse down at canvas position: (${coords.x}, ${coords.y})`);
+
+    // Handle text mode
+    if (selectedShape?.type === "text") {
+      setCursorPos(coords);
+      return;
+    }
+
+    // Handle drawing shapes
+    if (!selectedShape) return;
 
     setIsDrawing(true);
     setStartPos(coords);
@@ -225,7 +338,7 @@ export default function Canvas() {
 
   // Handle mouse move
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !startPos || !selectedShape) return;
+    if (!isDrawing || !startPos || !selectedShape || selectedShape.type === "text") return;
 
     const coords = getCanvasCoords(e.clientX, e.clientY);
     if (!coords) return;
@@ -295,7 +408,7 @@ export default function Canvas() {
 
   // Handle mouse up
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !startPos || !selectedShape) return;
+    if (!isDrawing || !startPos || !selectedShape || selectedShape.type === "text") return;
 
     const coords = getCanvasCoords(e.clientX, e.clientY);
     if (!coords) return;
@@ -356,7 +469,18 @@ export default function Canvas() {
         }
       });
     });
-  }, [layers]);
+
+    // Draw text cursor if in text mode
+    if (selectedShape?.type === "text" && cursorPos) {
+      ctx.fillStyle = "#0000ff";
+      ctx.fillRect(
+        cursorPos.x * CELL_WIDTH,
+        cursorPos.y * CELL_HEIGHT,
+        2,
+        CELL_HEIGHT
+      );
+    }
+  }, [layers, selectedShape, cursorPos]);
 
   return (
     <canvas

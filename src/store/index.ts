@@ -39,7 +39,7 @@ export const useLayersStore = create<LayersStore>((set) => ({
 
 interface Shape {
   id: string;
-  type: "rectangle" | "circle" | "line";
+  type: "rectangle" | "circle" | "line" | "text";
 }
 
 interface ShapeStore {
@@ -53,6 +53,7 @@ const defaultShapes: Shape[] = [
   { id: "shape-1", type: "rectangle" },
   { id: "shape-2", type: "circle" },
   { id: "shape-3", type: "line" },
+  { id: "shape-4", type: "text" },
 ];
 
 export const useShapeStore = create<ShapeStore>((set) => ({
