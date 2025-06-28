@@ -1,0 +1,353 @@
+"use client";
+
+import { useLayersStore, useShapeStore } from "@/store";
+import { useEffect, useRef, useState } from "react";
+import {
+  CANVAS_ROWS,
+  CANVAS_COLS,
+  CELL_WIDTH,
+  CELL_HEIGHT,
+} from "@/lib/constants";
+
+const CANVAS_WIDTH = CANVAS_COLS * CELL_WIDTH;
+const CANVAS_HEIGHT = CANVAS_ROWS * CELL_HEIGHT;
+
+console.log(
+  `Canvas dimensions: ${CANVAS_WIDTH}x${CANVAS_HEIGHT}, Cell size: ${CELL_WIDTH}x${CELL_HEIGHT}`
+);
+
+// ASCII characters for different shapes
+const SHAPE_CHARS = {
+  rectangle: {
+    top: "-",
+    bottom: "-",
+    left: "|",
+    right: "|",
+    corner: "+",
+    fill: " ",
+  },
+  circle: {
+    outline: "O",
+    fill: " ",
+  },
+  line: {
+    horizontal: "-",
+    vertical: "|",
+    diagonal: "/",
+  },
+};
+
+export default function Canvas() {
+  const layers = useLayersStore((state) => state.layers);
+  const addLayer = useLayersStore((state) => state.addLayer);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const selectedShape = useShapeStore((state) => state.selectedShape);
+
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(
+    null
+  );
+
+  // Get canvas coordinates from mouse position
+  const getCanvasCoords = (clientX: number, clientY: number) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+
+    // Convert mouse position to canvas coordinates
+    const x = Math.floor((clientX - rect.left) / CELL_WIDTH);
+    const y = Math.floor((clientY - rect.top) / CELL_HEIGHT);
+
+    // Clamp coordinates to canvas bounds
+    const clampedX = Math.max(0, Math.min(x, CANVAS_COLS - 1));
+    const clampedY = Math.max(0, Math.min(y, CANVAS_ROWS - 1));
+
+    console.log(
+      `Mouse: (${clientX}, ${clientY}) -> Canvas: (${clampedX}, ${clampedY})`
+    );
+    console.log(
+      `Canvas rect: left=${rect.left}, top=${rect.top}, width=${rect.width}, height=${rect.height}`
+    );
+
+    return { x: clampedX, y: clampedY };
+  };
+
+  // Generate ASCII characters for rectangle
+  const generateRectangle = (
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number
+  ) => {
+    const canvas = Array.from({ length: CANVAS_ROWS }, () =>
+      Array.from({ length: CANVAS_COLS }, () => " ")
+    );
+
+    const minX = Math.max(0, Math.min(startX, endX));
+    const maxX = Math.min(CANVAS_COLS - 1, Math.max(startX, endX));
+    const minY = Math.max(0, Math.min(startY, endY));
+    const maxY = Math.min(CANVAS_ROWS - 1, Math.max(startY, endY));
+
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        if (y === minY || y === maxY) {
+          // Top or bottom edge
+          if (x === minX || x === maxX) {
+            canvas[y][x] = SHAPE_CHARS.rectangle.corner;
+          } else {
+            canvas[y][x] = SHAPE_CHARS.rectangle.top;
+          }
+        } else if (x === minX || x === maxX) {
+          // Left or right edge
+          canvas[y][x] = SHAPE_CHARS.rectangle.left;
+        } else {
+          // Fill
+          canvas[y][x] = SHAPE_CHARS.rectangle.fill;
+        }
+      }
+    }
+
+    return canvas;
+  };
+
+  // Generate ASCII characters for circle
+  const generateCircle = (
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number
+  ) => {
+    const canvas = Array.from({ length: CANVAS_ROWS }, () =>
+      Array.from({ length: CANVAS_COLS }, () => " ")
+    );
+
+    const centerX = Math.floor((startX + endX) / 2);
+    const centerY = Math.floor((startY + endY) / 2);
+    const radiusX = Math.abs(endX - startX) / 2;
+    const radiusY = Math.abs(endY - startY) / 2;
+
+    for (let y = 0; y < CANVAS_ROWS; y++) {
+      for (let x = 0; x < CANVAS_COLS; x++) {
+        const dx = x - centerX;
+        const dy = y - centerY;
+        const distance = Math.sqrt(
+          (dx * dx) / (radiusX * radiusX) + (dy * dy) / (radiusY * radiusY)
+        );
+
+        if (distance >= 0.8 && distance <= 1.2) {
+          canvas[y][x] = SHAPE_CHARS.circle.outline;
+        } else if (distance < 0.8) {
+          canvas[y][x] = SHAPE_CHARS.circle.fill;
+        }
+      }
+    }
+
+    return canvas;
+  };
+
+  // Generate ASCII characters for line
+  const generateLine = (
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number
+  ) => {
+    const canvas = Array.from({ length: CANVAS_ROWS }, () =>
+      Array.from({ length: CANVAS_COLS }, () => " ")
+    );
+
+    const dx = Math.abs(endX - startX);
+    const dy = Math.abs(endY - startY);
+    const sx = startX < endX ? 1 : -1;
+    const sy = startY < endY ? 1 : -1;
+    let err = dx - dy;
+
+    let x = startX;
+    let y = startY;
+
+    while (true) {
+      if (x >= 0 && x < CANVAS_COLS && y >= 0 && y < CANVAS_ROWS) {
+        if (dx > dy) {
+          canvas[y][x] = SHAPE_CHARS.line.horizontal;
+        } else {
+          canvas[y][x] = SHAPE_CHARS.line.vertical;
+        }
+      }
+
+      if (x === endX && y === endY) break;
+
+      const e2 = 2 * err;
+      if (e2 > -dy) {
+        err -= dy;
+        x += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        y += sy;
+      }
+    }
+
+    return canvas;
+  };
+
+  // Handle mouse down
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!selectedShape) return;
+
+    const coords = getCanvasCoords(e.clientX, e.clientY);
+    if (!coords) return;
+
+    console.log(`Mouse down at canvas position: (${coords.x}, ${coords.y})`);
+
+    setIsDrawing(true);
+    setStartPos(coords);
+  };
+
+  // Handle mouse move
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !startPos || !selectedShape) return;
+
+    const coords = getCanvasCoords(e.clientX, e.clientY);
+    if (!coords) return;
+
+    // Redraw canvas with preview
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+
+    // Clear and redraw existing layers
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Draw existing layers
+    layers.forEach((layer) => {
+      layer.canvas.forEach((row, rowIndex) => {
+        row.forEach((cell, colIndex) => {
+          if (cell !== " ") {
+            ctx.fillStyle = "#000000";
+            ctx.font = `${CELL_HEIGHT}px monospace`;
+            ctx.textAlign = "left";
+            ctx.textBaseline = "top";
+            ctx.fillText(cell, colIndex * CELL_WIDTH, rowIndex * CELL_HEIGHT);
+          }
+        });
+      });
+    });
+
+    // Draw preview
+    let previewCanvas: string[][] = [];
+    switch (selectedShape.type) {
+      case "rectangle":
+        previewCanvas = generateRectangle(
+          startPos.x,
+          startPos.y,
+          coords.x,
+          coords.y
+        );
+        break;
+      case "circle":
+        previewCanvas = generateCircle(
+          startPos.x,
+          startPos.y,
+          coords.x,
+          coords.y
+        );
+        break;
+      case "line":
+        previewCanvas = generateLine(
+          startPos.x,
+          startPos.y,
+          coords.x,
+          coords.y
+        );
+        break;
+    }
+
+    // Draw preview
+    ctx.fillStyle = "#ff0000";
+    previewCanvas.forEach((row, rowIndex) => {
+      row.forEach((cell, colIndex) => {
+        if (cell !== " ") {
+          ctx.fillText(cell, colIndex * CELL_WIDTH, rowIndex * CELL_HEIGHT);
+        }
+      });
+    });
+  };
+
+  // Handle mouse up
+  const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !startPos || !selectedShape) return;
+
+    const coords = getCanvasCoords(e.clientX, e.clientY);
+    if (!coords) return;
+
+    console.log(
+      `Drawing shape from (${startPos.x}, ${startPos.y}) to (${coords.x}, ${coords.y})`
+    );
+
+    // Generate the shape
+    let newCanvas: string[][] = [];
+    switch (selectedShape.type) {
+      case "rectangle":
+        newCanvas = generateRectangle(
+          startPos.x,
+          startPos.y,
+          coords.x,
+          coords.y
+        );
+        break;
+      case "circle":
+        newCanvas = generateCircle(startPos.x, startPos.y, coords.x, coords.y);
+        break;
+      case "line":
+        newCanvas = generateLine(startPos.x, startPos.y, coords.x, coords.y);
+        break;
+    }
+
+    // Add new layer
+    const newLayer = {
+      id: `layer-${Date.now()}`,
+      canvas: newCanvas,
+    };
+    addLayer(newLayer);
+
+    setIsDrawing(false);
+    setStartPos(null);
+  };
+
+  useEffect(() => {
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+
+    // Clear the canvas
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Draw each layer
+    layers.forEach((layer) => {
+      layer.canvas.forEach((row, rowIndex) => {
+        row.forEach((cell, colIndex) => {
+          if (cell !== " ") {
+            ctx.fillStyle = "#000000";
+            ctx.font = `${CELL_HEIGHT}px monospace`;
+            ctx.textAlign = "left";
+            ctx.textBaseline = "top";
+            ctx.fillText(cell, colIndex * CELL_WIDTH, rowIndex * CELL_HEIGHT);
+          }
+        });
+      });
+    });
+  }, [layers]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={CANVAS_WIDTH}
+      height={CANVAS_HEIGHT}
+      className="bg-gray-100 border border-gray-300 cursor-crosshair"
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+    />
+  );
+}
