@@ -1,0 +1,16 @@
+# Cursor Rules for ASCII Canvas Project
+
+## Chat History Management
+- Save all chat conversations to the `@/conversations` folder
+- Use markdown format for all conversation files
+- Refer to user as 'Chuang:' and assistant as 'Cursor:'
+- Summarize long responses for clarity while maintaining understanding
+- Note any code changes made during each conversation
+- Name files as `num-{conversation summary}.md` where num is 1 larger than the latest
+- Always ask for confirmation before creating the conversation file
+- Start numbering from 1 for the first conversation
+
+## Project Context
+- This is an ASCII Canvas project with Next.js
+- Main components: Canvas, CanvasContainer, CanvasToolbar, Sidebar
+- Uses TypeScript and modern React patterns 
