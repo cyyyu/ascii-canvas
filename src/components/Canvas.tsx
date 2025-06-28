@@ -31,8 +31,8 @@ const SHAPE_CHARS = {
   line: {
     horizontal: "-",
     vertical: "|",
-    diagonal1: "/",
-    diagonal2: "\\",
+    diagonal1: "\\",
+    diagonal2: "/",
   },
 };
 
@@ -283,10 +283,10 @@ export default function Canvas() {
           // Diagonal line - determine which diagonal
           const slope = (endY - startY) / (endX - startX);
           if (slope > 0) {
-            // Positive slope: bottom-left to top-right (/)
+            // Positive slope: bottom-left to top-right (\)
             canvas[y][x] = SHAPE_CHARS.line.diagonal1;
           } else {
-            // Negative slope: top-left to bottom-right (\)
+            // Negative slope: top-left to bottom-right (/)
             canvas[y][x] = SHAPE_CHARS.line.diagonal2;
           }
         }
@@ -372,6 +372,9 @@ export default function Canvas() {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+    // Draw cell grid
+    drawCellGrid(ctx);
+
     // Draw merged layers
     const mergedCanvas = mergeLayers();
     mergedCanvas.forEach((row, rowIndex) => {
@@ -379,9 +382,13 @@ export default function Canvas() {
         if (cell !== " ") {
           ctx.fillStyle = "#000000";
           ctx.font = `${CELL_HEIGHT}px monospace`;
-          ctx.textAlign = "left";
-          ctx.textBaseline = "top";
-          ctx.fillText(cell, colIndex * CELL_WIDTH, rowIndex * CELL_HEIGHT);
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(
+            cell, 
+            colIndex * CELL_WIDTH + CELL_WIDTH / 2, 
+            rowIndex * CELL_HEIGHT + CELL_HEIGHT / 2
+          );
         }
       });
     });
@@ -420,7 +427,11 @@ export default function Canvas() {
     previewCanvas.forEach((row, rowIndex) => {
       row.forEach((cell, colIndex) => {
         if (cell !== " ") {
-          ctx.fillText(cell, colIndex * CELL_WIDTH, rowIndex * CELL_HEIGHT);
+          ctx.fillText(
+            cell, 
+            colIndex * CELL_WIDTH + CELL_WIDTH / 2, 
+            rowIndex * CELL_HEIGHT + CELL_HEIGHT / 2
+          );
         }
       });
     });
@@ -467,6 +478,47 @@ export default function Canvas() {
     setStartPos(null);
   };
 
+  // Handle mouse leave - finish drawing if in progress
+  const handleMouseLeave = () => {
+    if (isDrawing && startPos && selectedShape && selectedShape.type !== "text") {
+      // Use the last known position or a default position
+      const endPos = { x: startPos.x, y: startPos.y };
+      
+      console.log(
+        `Mouse left canvas, finishing shape from (${startPos.x}, ${startPos.y}) to (${endPos.x}, ${endPos.y})`
+      );
+
+      // Generate the shape
+      let newCanvas: string[][] = [];
+      switch (selectedShape.type) {
+        case "rectangle":
+          newCanvas = generateRectangle(
+            startPos.x,
+            startPos.y,
+            endPos.x,
+            endPos.y
+          );
+          break;
+        case "circle":
+          newCanvas = generateCircle(startPos.x, startPos.y, endPos.x, endPos.y);
+          break;
+        case "line":
+          newCanvas = generateLine(startPos.x, startPos.y, endPos.x, endPos.y);
+          break;
+      }
+
+      // Add new layer
+      const newLayer = {
+        id: `layer-${Date.now()}`,
+        canvas: newCanvas,
+      };
+      addLayer(newLayer);
+
+      setIsDrawing(false);
+      setStartPos(null);
+    }
+  };
+
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
@@ -476,6 +528,9 @@ export default function Canvas() {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+    // Draw cell grid
+    drawCellGrid(ctx);
+
     // Draw merged layers
     const mergedCanvas = mergeLayers();
     mergedCanvas.forEach((row, rowIndex) => {
@@ -483,9 +538,13 @@ export default function Canvas() {
         if (cell !== " ") {
           ctx.fillStyle = "#000000";
           ctx.font = `${CELL_HEIGHT}px monospace`;
-          ctx.textAlign = "left";
-          ctx.textBaseline = "top";
-          ctx.fillText(cell, colIndex * CELL_WIDTH, rowIndex * CELL_HEIGHT);
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(
+            cell, 
+            colIndex * CELL_WIDTH + CELL_WIDTH / 2, 
+            rowIndex * CELL_HEIGHT + CELL_HEIGHT / 2
+          );
         }
       });
     });
@@ -497,7 +556,11 @@ export default function Canvas() {
       hoveredCanvas.forEach((row, rowIndex) => {
         row.forEach((cell, colIndex) => {
           if (cell !== " ") {
-            ctx.fillText(cell, colIndex * CELL_WIDTH, rowIndex * CELL_HEIGHT);
+            ctx.fillText(
+              cell, 
+              colIndex * CELL_WIDTH + CELL_WIDTH / 2, 
+              rowIndex * CELL_HEIGHT + CELL_HEIGHT / 2
+            );
           }
         });
       });
@@ -507,13 +570,35 @@ export default function Canvas() {
     if (selectedShape?.type === "text" && cursorPos) {
       ctx.fillStyle = "#0000ff";
       ctx.fillRect(
-        cursorPos.x * CELL_WIDTH,
-        cursorPos.y * CELL_HEIGHT,
+        cursorPos.x * CELL_WIDTH + CELL_WIDTH / 2 - 1,
+        cursorPos.y * CELL_HEIGHT + CELL_HEIGHT / 2 - CELL_HEIGHT / 2,
         2,
         CELL_HEIGHT
       );
     }
   }, [layers, selectedShape, cursorPos, hoveredLayerId]);
+
+  // Draw cell grid with light gray borders
+  const drawCellGrid = (ctx: CanvasRenderingContext2D) => {
+    ctx.strokeStyle = "#e5e7eb"; // Light gray
+    ctx.lineWidth = 1;
+    
+    // Draw vertical lines
+    for (let x = 0; x <= CANVAS_COLS; x++) {
+      ctx.beginPath();
+      ctx.moveTo(x * CELL_WIDTH, 0);
+      ctx.lineTo(x * CELL_WIDTH, CANVAS_HEIGHT);
+      ctx.stroke();
+    }
+    
+    // Draw horizontal lines
+    for (let y = 0; y <= CANVAS_ROWS; y++) {
+      ctx.beginPath();
+      ctx.moveTo(0, y * CELL_HEIGHT);
+      ctx.lineTo(CANVAS_WIDTH, y * CELL_HEIGHT);
+      ctx.stroke();
+    }
+  };
 
   return (
     <canvas
@@ -524,6 +609,7 @@ export default function Canvas() {
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
     />
   );
 }
