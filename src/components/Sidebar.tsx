@@ -7,6 +7,13 @@ export default function Sidebar() {
 
   return (
     <div className="flex h-full w-64 flex-col bg-gray-800 p-4 text-white shrink-0">
+      <button
+        className="mb-4 rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        onClick={() => useLayersStore.getState().clearAllLayers()}
+        disabled={layers.length === 0}
+      >
+        Clear All Layers
+      </button>
       <h2 className="mb-4 text-xl font-bold">Layers</h2>
       <ul className="space-y-2">
         {layers.map((layer) => (

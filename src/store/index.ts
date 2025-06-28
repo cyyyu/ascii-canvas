@@ -11,6 +11,7 @@ interface LayersStore {
   removeLayer: (id: string) => void;
   updateLayer: (id: string, canvas: string[][]) => void;
   reorderLayers: (fromIndex: number, toIndex: number) => void;
+  clearAllLayers: () => void;
 }
 
 export const useLayersStore = create<LayersStore>((set) => ({
@@ -33,6 +34,7 @@ export const useLayersStore = create<LayersStore>((set) => ({
       layers.splice(toIndex, 0, movedLayer);
       return { layers };
     }),
+  clearAllLayers: () => set({ layers: [] }),
 }));
 
 interface Shape {
