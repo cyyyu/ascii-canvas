@@ -24,16 +24,15 @@ const SHAPE_CHARS = {
     left: "|",
     right: "|",
     corner: "+",
-    fill: " ",
   },
   circle: {
-    outline: "O",
-    fill: " ",
+    outline: ".",
   },
   line: {
     horizontal: "-",
     vertical: "|",
-    diagonal: "/",
+    diagonal1: "/",
+    diagonal2: "\\",
   },
 };
 
@@ -206,10 +205,8 @@ export default function Canvas() {
         } else if (x === minX || x === maxX) {
           // Left or right edge
           canvas[y][x] = SHAPE_CHARS.rectangle.left;
-        } else {
-          // Fill
-          canvas[y][x] = SHAPE_CHARS.rectangle.fill;
         }
+        // No fill - only draw the outline
       }
     }
 
@@ -231,6 +228,9 @@ export default function Canvas() {
     const centerY = Math.floor((startY + endY) / 2);
     const radiusX = Math.abs(endX - startX) / 2;
     const radiusY = Math.abs(endY - startY) / 2;
+    const avgRadius = (radiusX + radiusY) / 2;
+    const c = 0.5; // Controls outline thickness
+    const threshold = c / Math.max(avgRadius, 1); // Avoid division by zero
 
     for (let y = 0; y < CANVAS_ROWS; y++) {
       for (let x = 0; x < CANVAS_COLS; x++) {
@@ -240,10 +240,9 @@ export default function Canvas() {
           (dx * dx) / (radiusX * radiusX) + (dy * dy) / (radiusY * radiusY)
         );
 
-        if (distance >= 0.8 && distance <= 1.2) {
+        // Dynamic threshold for thin outline
+        if (distance >= 1 - threshold && distance <= 1 + threshold) {
           canvas[y][x] = SHAPE_CHARS.circle.outline;
-        } else if (distance < 0.8) {
-          canvas[y][x] = SHAPE_CHARS.circle.fill;
         }
       }
     }
@@ -273,10 +272,23 @@ export default function Canvas() {
 
     while (true) {
       if (x >= 0 && x < CANVAS_COLS && y >= 0 && y < CANVAS_ROWS) {
-        if (dx > dy) {
+        // Determine the appropriate character based on line direction
+        if (dx === 0) {
+          // Vertical line
+          canvas[y][x] = SHAPE_CHARS.line.vertical;
+        } else if (dy === 0) {
+          // Horizontal line
           canvas[y][x] = SHAPE_CHARS.line.horizontal;
         } else {
-          canvas[y][x] = SHAPE_CHARS.line.vertical;
+          // Diagonal line - determine which diagonal
+          const slope = (endY - startY) / (endX - startX);
+          if (slope > 0) {
+            // Positive slope: bottom-left to top-right (/)
+            canvas[y][x] = SHAPE_CHARS.line.diagonal1;
+          } else {
+            // Negative slope: top-left to bottom-right (\)
+            canvas[y][x] = SHAPE_CHARS.line.diagonal2;
+          }
         }
       }
 
