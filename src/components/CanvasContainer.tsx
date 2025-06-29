@@ -1,16 +1,18 @@
 "use client";
 
-import { useDragStore, useScalingStore } from "@/store";
+import { useDragStore, useScalingStore, useCanvasSizeStore } from "@/store";
 import { useEffect, useRef, useState } from "react";
-import { CANVAS_COLS, CANVAS_ROWS } from "@/lib/constants";
 import Canvas from "./Canvas";
 import CanvasToolbar from "./CanvasToolbar";
 
 export default function CanvasContainer() {
   const containerRef = useRef<HTMLDivElement>(null);
   
+  // Canvas size functionality
+  const { canvasRows, canvasCols } = useCanvasSizeStore();
+  
   // Scaling functionality
-  const { updateScaling } = useScalingStore();
+  const { updateScaling, cellWidth, cellHeight } = useScalingStore();
   
   // Drag functionality
   const isDragging = useDragStore((state) => state.isDragging);
@@ -53,27 +55,53 @@ export default function CanvasContainer() {
       const newX = e.clientX - dragStart.x;
       const newY = e.clientY - dragStart.y;
       
-      // Apply constraints to keep at least half the canvas visible
+      // Apply constraints to keep canvas edges from crossing the middle line
       const containerRect = containerRef.current?.getBoundingClientRect();
       if (containerRect) {
         const containerWidth = containerRect.width;
         const containerHeight = containerRect.height;
         
-        // Get current canvas dimensions from scaling store
-        const { cellWidth, cellHeight } = useScalingStore.getState();
+        // Account for padding in the draggable area
+        const padding = 24; // 16px (p-4) + 8px (inline style)
+        const draggableWidth = containerWidth - (padding * 2);
+        const draggableHeight = containerHeight - (padding * 2);
         
-        const canvasWidth = CANVAS_COLS * cellWidth;
-        const canvasHeight = CANVAS_ROWS * cellHeight;
+        // Use current cell dimensions from the store (includes zoom)
+        const canvasWidth = canvasCols * cellWidth;
+        const canvasHeight = canvasRows * cellHeight;
         
-        // Constrain X: when dragged left, right edge can touch middle; when dragged right, left edge can touch middle
-        const minX = -canvasWidth / 2;
-        const maxX = containerWidth - canvasWidth / 2;
-        const constrainedX = Math.max(minX, Math.min(maxX, newX));
+        // Calculate constraints
+        // The canvas div is initially centered, so dragPosition represents offset from center
+        const minX = -draggableWidth / 2 + canvasWidth / 2; // Left edge at middle
+        const maxX = draggableWidth / 2 - canvasWidth / 2;  // Right edge at middle
         
-        // Constrain Y: same logic
-        const minY = -canvasHeight / 2;
-        const maxY = containerHeight - canvasHeight / 2;
-        const constrainedY = Math.max(minY, Math.min(maxY, newY));
+        // If canvas is larger than draggable area, adjust constraints
+        let constrainedX;
+        if (canvasWidth > draggableWidth) {
+          // Canvas is larger - allow dragging but keep edges from crossing middle
+          const maxOffset = canvasWidth / 2 - draggableWidth / 2;
+          constrainedX = Math.max(-maxOffset, Math.min(maxOffset, newX));
+        } else {
+          // Canvas fits in draggable area - use normal constraints
+          constrainedX = Math.max(minX, Math.min(maxX, newX));
+        }
+        
+        // Y-axis constraints
+        // When dragged up: bottom edge cannot pass middle line (newY + canvasHeight/2 <= draggableHeight/2)
+        // When dragged down: top edge cannot pass middle line (newY - canvasHeight/2 >= -draggableHeight/2)
+        const minY = -draggableHeight / 2 + canvasHeight / 2; // Top edge at middle
+        const maxY = draggableHeight / 2 - canvasHeight / 2;  // Bottom edge at middle
+        
+        // If canvas is larger than draggable area, adjust constraints
+        let constrainedY;
+        if (canvasHeight > draggableHeight) {
+          // Canvas is larger - allow dragging but keep edges from crossing middle
+          const maxOffset = canvasHeight / 2 - draggableHeight / 2;
+          constrainedY = Math.max(-maxOffset, Math.min(maxOffset, newY));
+        } else {
+          // Canvas fits in draggable area - use normal constraints
+          constrainedY = Math.max(minY, Math.min(maxY, newY));
+        }
         
         setDragPosition({ x: constrainedX, y: constrainedY });
       }
@@ -111,13 +139,19 @@ export default function CanvasContainer() {
     };
   }, [updateScaling]);
 
+  // Reset drag position when canvas size or zoom changes
+  useEffect(() => {
+    setDragPosition({ x: 0, y: 0 });
+  }, [canvasRows, canvasCols, cellWidth, cellHeight, setDragPosition]);
+
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
       <div 
         ref={containerRef}
         className="flex-1 bg-gray-100 p-4 overflow-hidden flex items-center justify-center"
         style={{
-          cursor: isDragging ? "grab" : "default"
+          cursor: isDragging ? "grab" : "default",
+          padding: "8px"
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}

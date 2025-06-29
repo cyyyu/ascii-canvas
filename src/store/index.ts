@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { CANVAS_ROWS, CANVAS_COLS } from "@/lib/constants";
+import { CANVAS_SIZES } from "@/lib/constants";
 
 interface Layer {
   id: string;
@@ -17,6 +17,7 @@ interface LayersStore {
   reorderLayers: (fromIndex: number, toIndex: number) => void;
   clearAllLayers: () => void;
   setHoveredLayer: (id: string | null) => void;
+  resizeLayers: (newRows: number, newCols: number) => void;
 }
 
 export const useLayersStore = create<LayersStore>((set) => ({
@@ -48,6 +49,27 @@ export const useLayersStore = create<LayersStore>((set) => ({
     }),
   clearAllLayers: () => set({ layers: [] }),
   setHoveredLayer: (id) => set({ hoveredLayerId: id }),
+  resizeLayers: (newRows: number, newCols: number) =>
+    set((state) => ({
+      layers: state.layers.map((layer) => {
+        const newCanvas = Array.from({ length: newRows }, () =>
+          Array.from({ length: newCols }, () => " ")
+        );
+        
+        // Copy existing content, truncating if necessary
+        layer.canvas.forEach((row, rowIndex) => {
+          if (rowIndex < newRows) {
+            row.forEach((cell, colIndex) => {
+              if (colIndex < newCols) {
+                newCanvas[rowIndex][colIndex] = cell;
+              }
+            });
+          }
+        });
+        
+        return { ...layer, canvas: newCanvas };
+      }),
+    })),
 }));
 
 export interface Shape {
@@ -92,6 +114,32 @@ export const useDragStore = create<DragStore>((set) => ({
   resetDragPosition: () => set({ dragPosition: { x: 0, y: 0 } }),
 }));
 
+interface CanvasSizeStore {
+  currentSize: keyof typeof CANVAS_SIZES;
+  canvasRows: number;
+  canvasCols: number;
+  setCanvasSize: (size: keyof typeof CANVAS_SIZES) => void;
+}
+
+export const useCanvasSizeStore = create<CanvasSizeStore>((set) => ({
+  currentSize: "small",
+  canvasRows: CANVAS_SIZES.small.rows,
+  canvasCols: CANVAS_SIZES.small.cols,
+  setCanvasSize: (size) => {
+    const newRows = CANVAS_SIZES[size].rows;
+    const newCols = CANVAS_SIZES[size].cols;
+    
+    set({
+      currentSize: size,
+      canvasRows: newRows,
+      canvasCols: newCols,
+    });
+    
+    // Resize all layers to match the new canvas size
+    useLayersStore.getState().resizeLayers(newRows, newCols);
+  },
+}));
+
 interface CopyStore {
   copyToClipboard: (text: string) => Promise<void>;
   copyCanvasContent: (layers: Layer[]) => Promise<void>;
@@ -114,17 +162,18 @@ export const useCopyStore = create<CopyStore>((set, get) => ({
   },
   copyCanvasContent: async (layers: Layer[]) => {
     const { copyToClipboard } = get();
+    const { canvasRows, canvasCols } = useCanvasSizeStore.getState();
     
     // Merge all layers into a single canvas array
-    const mergedCanvas = Array.from({ length: CANVAS_ROWS }, () =>
-      Array.from({ length: CANVAS_COLS }, () => " ")
+    const mergedCanvas = Array.from({ length: canvasRows }, () =>
+      Array.from({ length: canvasCols }, () => " ")
     );
 
     // Process layers in order (older first, newer last)
     layers.forEach((layer) => {
       layer.canvas.forEach((row, rowIndex) => {
         row.forEach((cell, colIndex) => {
-          if (cell !== " ") {
+          if (cell !== " " && rowIndex < canvasRows && colIndex < canvasCols) {
             mergedCanvas[rowIndex][colIndex] = cell;
           }
         });

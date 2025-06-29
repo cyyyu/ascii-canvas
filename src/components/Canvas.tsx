@@ -1,11 +1,7 @@
 "use client";
 
-import { useLayersStore, useShapeStore, useDragStore, useScalingStore } from "@/store";
+import { useLayersStore, useShapeStore, useDragStore, useScalingStore, useCanvasSizeStore } from "@/store";
 import { useEffect, useRef, useState } from "react";
-import {
-  CANVAS_ROWS,
-  CANVAS_COLS,
-} from "@/lib/constants";
 
 // ASCII characters for different shapes
 const SHAPE_CHARS = {
@@ -47,6 +43,9 @@ export default function Canvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const selectedShape = useShapeStore((state) => state.selectedShape);
   
+  // Canvas size functionality
+  const { canvasRows, canvasCols } = useCanvasSizeStore();
+  
   // Scaling functionality
   const { cellWidth, cellHeight, fontSize } = useScalingStore();
   
@@ -72,8 +71,8 @@ export default function Canvas({
     const y = Math.floor((clientY - rect.top) / cellHeight);
 
     // Clamp coordinates to canvas bounds
-    const clampedX = Math.max(0, Math.min(x, CANVAS_COLS - 1));
-    const clampedY = Math.max(0, Math.min(y, CANVAS_ROWS - 1));
+    const clampedX = Math.max(0, Math.min(x, canvasCols - 1));
+    const clampedY = Math.max(0, Math.min(y, canvasRows - 1));
 
     return { x: clampedX, y: clampedY };
   };
@@ -85,13 +84,13 @@ export default function Canvas({
 
     // Always allow the current position (for overwriting)
     // Only check for collisions when moving to the next position
-    if (x >= CANVAS_COLS) {
+    if (x >= canvasCols) {
       x = 0;
       y++;
     }
 
     // If we're at the end of canvas, wrap to beginning
-    if (y >= CANVAS_ROWS) {
+    if (y >= canvasRows) {
       y = 0;
     }
 
@@ -107,8 +106,8 @@ export default function Canvas({
     if (!textLayer) {
       textLayer = {
         id: `text-layer-${Date.now()}`,
-        canvas: Array.from({ length: CANVAS_ROWS }, () =>
-          Array.from({ length: CANVAS_COLS }, () => " ")
+        canvas: Array.from({ length: canvasRows }, () =>
+          Array.from({ length: canvasCols }, () => " ")
         ),
         shapeType: "text",
       };
@@ -126,7 +125,7 @@ export default function Canvas({
       let newY = cursorPos.y;
       
       if (newX < 0) {
-        newX = CANVAS_COLS - 1;
+        newX = canvasCols - 1;
         newY = Math.max(0, newY - 1);
       }
       
@@ -189,14 +188,14 @@ export default function Canvas({
     endX: number,
     endY: number
   ) => {
-    const canvas = Array.from({ length: CANVAS_ROWS }, () =>
-      Array.from({ length: CANVAS_COLS }, () => " ")
+    const canvas = Array.from({ length: canvasRows }, () =>
+      Array.from({ length: canvasCols }, () => " ")
     );
 
     const minX = Math.max(0, Math.min(startX, endX));
-    const maxX = Math.min(CANVAS_COLS - 1, Math.max(startX, endX));
+    const maxX = Math.min(canvasCols - 1, Math.max(startX, endX));
     const minY = Math.max(0, Math.min(startY, endY));
-    const maxY = Math.min(CANVAS_ROWS - 1, Math.max(startY, endY));
+    const maxY = Math.min(canvasRows - 1, Math.max(startY, endY));
 
     for (let y = minY; y <= maxY; y++) {
       for (let x = minX; x <= maxX; x++) {
@@ -225,8 +224,8 @@ export default function Canvas({
     endX: number,
     endY: number
   ) => {
-    const canvas = Array.from({ length: CANVAS_ROWS }, () =>
-      Array.from({ length: CANVAS_COLS }, () => " ")
+    const canvas = Array.from({ length: canvasRows }, () =>
+      Array.from({ length: canvasCols }, () => " ")
     );
 
     const centerX = Math.floor((startX + endX) / 2);
@@ -237,8 +236,8 @@ export default function Canvas({
     const c = 0.5; // Controls outline thickness
     const threshold = c / Math.max(avgRadius, 1); // Avoid division by zero
 
-    for (let y = 0; y < CANVAS_ROWS; y++) {
-      for (let x = 0; x < CANVAS_COLS; x++) {
+    for (let y = 0; y < canvasRows; y++) {
+      for (let x = 0; x < canvasCols; x++) {
         const dx = x - centerX;
         const dy = y - centerY;
         const distance = Math.sqrt(
@@ -262,8 +261,8 @@ export default function Canvas({
     endX: number,
     endY: number
   ) => {
-    const canvas = Array.from({ length: CANVAS_ROWS }, () =>
-      Array.from({ length: CANVAS_COLS }, () => " ")
+    const canvas = Array.from({ length: canvasRows }, () =>
+      Array.from({ length: canvasCols }, () => " ")
     );
 
     const dx = Math.abs(endX - startX);
@@ -276,7 +275,7 @@ export default function Canvas({
     let y = startY;
 
     while (true) {
-      if (x >= 0 && x < CANVAS_COLS && y >= 0 && y < CANVAS_ROWS) {
+      if (x >= 0 && x < canvasCols && y >= 0 && y < canvasRows) {
         // Determine the appropriate character based on line direction
         if (dx === 0) {
           // Vertical line
@@ -315,8 +314,8 @@ export default function Canvas({
 
   // Merge all layers into a single canvas array
   const mergeLayers = () => {
-    const mergedCanvas = Array.from({ length: CANVAS_ROWS }, () =>
-      Array.from({ length: CANVAS_COLS }, () => " ")
+    const mergedCanvas = Array.from({ length: canvasRows }, () =>
+      Array.from({ length: canvasCols }, () => " ")
     );
 
     // Process layers in order (older first, newer last)
@@ -372,8 +371,8 @@ export default function Canvas({
     if (!ctx) return;
 
     // Clear and redraw existing layers
-    const canvasWidth = CANVAS_COLS * cellWidth;
-    const canvasHeight = CANVAS_ROWS * cellHeight;
+    const canvasWidth = canvasCols * cellWidth;
+    const canvasHeight = canvasRows * cellHeight;
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -524,8 +523,8 @@ export default function Canvas({
     if (!ctx) return;
 
     // Clear the canvas
-    const canvasWidth = CANVAS_COLS * cellWidth;
-    const canvasHeight = CANVAS_ROWS * cellHeight;
+    const canvasWidth = canvasCols * cellWidth;
+    const canvasHeight = canvasRows * cellHeight;
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -578,18 +577,18 @@ export default function Canvas({
         cellHeight
       );
     }
-  }, [layers, selectedShape, cursorPos, hoveredLayerId, cellWidth, cellHeight, fontSize]);
+  }, [layers, selectedShape, cursorPos, hoveredLayerId, cellWidth, cellHeight, fontSize, canvasRows, canvasCols]);
 
   // Draw cell grid with light gray borders
   const drawCellGrid = (ctx: CanvasRenderingContext2D) => {
     ctx.strokeStyle = "#e5e7eb"; // Light gray
     ctx.lineWidth = 1;
     
-    const canvasWidth = CANVAS_COLS * cellWidth;
-    const canvasHeight = CANVAS_ROWS * cellHeight;
+    const canvasWidth = canvasCols * cellWidth;
+    const canvasHeight = canvasRows * cellHeight;
     
     // Draw vertical lines
-    for (let x = 0; x <= CANVAS_COLS; x++) {
+    for (let x = 0; x <= canvasCols; x++) {
       ctx.beginPath();
       ctx.moveTo(x * cellWidth, 0);
       ctx.lineTo(x * cellWidth, canvasHeight);
@@ -597,7 +596,7 @@ export default function Canvas({
     }
     
     // Draw horizontal lines
-    for (let y = 0; y <= CANVAS_ROWS; y++) {
+    for (let y = 0; y <= canvasRows; y++) {
       ctx.beginPath();
       ctx.moveTo(0, y * cellHeight);
       ctx.lineTo(canvasWidth, y * cellHeight);
@@ -616,8 +615,8 @@ export default function Canvas({
     >
       <canvas
         ref={canvasRef}
-        width={CANVAS_COLS * cellWidth}
-        height={CANVAS_ROWS * cellHeight}
+        width={canvasCols * cellWidth}
+        height={canvasRows * cellHeight}
         className="bg-gray-100 border border-gray-300"
         style={{ 
           cursor: isDragging ? "grab" : "crosshair"

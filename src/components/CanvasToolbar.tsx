@@ -1,10 +1,12 @@
 "use client";
 
-import { useShapeStore, useDragStore, useLayersStore, useCopyStore, useScalingStore } from "@/store";
+import { useShapeStore, useDragStore, useLayersStore, useCopyStore, useScalingStore, useCanvasSizeStore } from "@/store";
 import type { Shape } from "@/store";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Square, Circle, Triangle, Type, Minus, Hand, Copy, ZoomIn, ZoomOut } from "lucide-react";
 import { toast } from "sonner";
+import { CANVAS_SIZES } from "@/lib/constants";
 
 export default function CanvasToolbar() {
   const shapes = useShapeStore((state) => state.shapes);
@@ -17,6 +19,9 @@ export default function CanvasToolbar() {
 
   const layers = useLayersStore((state) => state.layers);
   const copyCanvasContent = useCopyStore((state) => state.copyCanvasContent);
+
+  // Canvas size functionality
+  const { currentSize, setCanvasSize } = useCanvasSizeStore();
 
   // Scaling functionality
   const { fontSize, updateScaling } = useScalingStore();
@@ -88,6 +93,10 @@ export default function CanvasToolbar() {
     updateScaling(currentScale * 0.9);
   };
 
+  const handleCanvasSizeChange = (size: string) => {
+    setCanvasSize(size as keyof typeof CANVAS_SIZES);
+  };
+
   return (
     <div className="flex h-12 w-full items-center justify-between bg-gray-200 p-2">
       <div className="flex space-x-2">
@@ -110,6 +119,18 @@ export default function CanvasToolbar() {
           <Hand className="h-4 w-4" />
           <span className="ml-0.5">drag</span>
         </Button>
+        <Select value={currentSize} onValueChange={handleCanvasSizeChange}>
+          <SelectTrigger className="w-[140px] h-8">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(CANVAS_SIZES).map(([key, size]) => (
+              <SelectItem key={key} value={key}>
+                {size.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="flex items-center space-x-2">
         <div className="flex items-center space-x-1">
