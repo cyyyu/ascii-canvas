@@ -4,6 +4,7 @@ import { useShapeStore, useDragStore, useLayersStore, useCopyStore, useScalingSt
 import type { Shape } from "@/store";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Square, Circle, Triangle, Type, Minus, Hand, Copy, ZoomIn, ZoomOut } from "lucide-react";
 import { toast } from "sonner";
 import { CANVAS_SIZES } from "@/lib/constants";
@@ -16,6 +17,7 @@ export default function CanvasToolbar() {
   
   const isDragging = useDragStore((state) => state.isDragging);
   const setDragging = useDragStore((state) => state.setDragging);
+  const isShiftPressed = useDragStore((state) => state.isShiftPressed);
 
   const layers = useLayersStore((state) => state.layers);
   const copyCanvasContent = useCopyStore((state) => state.copyCanvasContent);
@@ -44,20 +46,23 @@ export default function CanvasToolbar() {
   };
 
   const handleDragToggle = () => {
-    if (isDragging) {
-      setDragging(false);
-    } else {
-      // Turn off any selected shape when enabling drag mode
-      if (selectedShape) {
-        unselectShape();
+    // Only allow manual toggle if shift is not pressed
+    if (!isShiftPressed) {
+      if (isDragging) {
+        setDragging(false);
+      } else {
+        // Turn off any selected shape when enabling drag mode
+        if (selectedShape) {
+          unselectShape();
+        }
+        setDragging(true);
       }
-      setDragging(true);
     }
   };
 
   const handleShapeSelect = (shape: Shape) => {
-    // Turn off drag mode when selecting a shape
-    if (isDragging) {
+    // Turn off drag mode when selecting a shape (only if not shift-pressed)
+    if (isDragging && !isShiftPressed) {
       setDragging(false);
     }
     
@@ -98,71 +103,81 @@ export default function CanvasToolbar() {
   };
 
   return (
-    <div className="flex h-12 w-full items-center justify-between bg-gray-200 p-2">
-      <div className="flex space-x-2">
-        {shapes.map((shape) => (
-          <Button
-            key={shape.id}
-            variant={selectedShape?.id === shape.id ? "default" : "secondary"}
-            size="sm"
-            onClick={() => handleShapeSelect(shape)}
-          >
-            {getShapeIcon(shape.type)}
-            <span className="ml-0.5">{shape.type}</span>
-          </Button>
-        ))}
-        <Button
-          variant={isDragging ? "default" : "secondary"}
-          size="sm"
-          onClick={handleDragToggle}
-        >
-          <Hand className="h-4 w-4" />
-          <span className="ml-0.5">drag</span>
-        </Button>
-        <Select value={currentSize} onValueChange={handleCanvasSizeChange}>
-          <SelectTrigger className="w-[140px] h-8">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(CANVAS_SIZES).map(([key, size]) => (
-              <SelectItem key={key} value={key}>
-                {size.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="flex items-center space-x-2">
-        <div className="flex items-center space-x-1">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleZoomOut}
-            title="Zoom Out"
-          >
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <div className="px-2 py-1 text-sm font-mono bg-white rounded border">
-            {fontSize}px
+    <TooltipProvider>
+      <div className="flex h-12 w-full items-center justify-between bg-gray-200 p-2">
+        <div className="flex space-x-2">
+          {shapes.map((shape) => (
+            <Button
+              key={shape.id}
+              variant={selectedShape?.id === shape.id ? "default" : "secondary"}
+              size="sm"
+              onClick={() => handleShapeSelect(shape)}
+            >
+              {getShapeIcon(shape.type)}
+              <span className="ml-0.5">{shape.type}</span>
+            </Button>
+          ))}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={isDragging ? "default" : "secondary"}
+                size="sm"
+                onClick={handleDragToggle}
+                disabled={isShiftPressed}
+              >
+                <Hand className="h-4 w-4" />
+                <span className="ml-0.5">drag</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Hold Shift to enter drag mode</p>
+            </TooltipContent>
+          </Tooltip>
+          <Select value={currentSize} onValueChange={handleCanvasSizeChange}>
+            <SelectTrigger className="w-[140px] h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(CANVAS_SIZES).map(([key, size]) => (
+                <SelectItem key={key} value={key}>
+                  {size.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleZoomOut}
+              title="Zoom Out"
+            >
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+            <div className="px-2 py-1 text-sm font-mono bg-white rounded border">
+              {fontSize}px
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleZoomIn}
+              title="Zoom In"
+            >
+              <ZoomIn className="h-4 w-4" />
+            </Button>
           </div>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
-            onClick={handleZoomIn}
-            title="Zoom In"
+            onClick={handleCopy}
           >
-            <ZoomIn className="h-4 w-4" />
+            <Copy className="h-4 w-4" />
+            <span className="ml-0.5">copy</span>
           </Button>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={handleCopy}
-        >
-          <Copy className="h-4 w-4" />
-          <span className="ml-0.5">copy</span>
-        </Button>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

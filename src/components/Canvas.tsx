@@ -28,13 +28,15 @@ interface CanvasProps {
   onMouseMove?: (e: React.MouseEvent) => void;
   onMouseUp?: (e: React.MouseEvent) => void;
   onMouseLeave?: () => void;
+  onWheel?: (e: React.WheelEvent) => void;
 }
 
 export default function Canvas({ 
   onMouseDown, 
   onMouseMove, 
   onMouseUp, 
-  onMouseLeave 
+  onMouseLeave,
+  onWheel
 }: CanvasProps) {
   const layers = useLayersStore((state) => state.layers);
   const hoveredLayerId = useLayersStore((state) => state.hoveredLayerId);
@@ -351,8 +353,8 @@ export default function Canvas({
       return;
     }
 
-    // Handle drawing shapes
-    if (!selectedShape) return;
+    // Handle drawing shapes - only if not in drag mode
+    if (!selectedShape || isDragging) return;
 
     setIsDrawing(true);
     setStartPos(coords);
@@ -360,8 +362,8 @@ export default function Canvas({
 
   // Handle mouse move
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    // Handle drawing preview
-    if (!isDrawing || !startPos || !selectedShape || selectedShape.type === "text") return;
+    // Handle drawing preview - only if not in drag mode
+    if (!isDrawing || !startPos || !selectedShape || selectedShape.type === "text" || isDragging) return;
 
     const coords = getCanvasCoords(e.clientX, e.clientY);
     if (!coords) return;
@@ -444,7 +446,7 @@ export default function Canvas({
 
   // Handle mouse up
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !startPos || !selectedShape || selectedShape.type === "text") return;
+    if (!isDrawing || !startPos || !selectedShape || selectedShape.type === "text" || isDragging) return;
 
     const coords = getCanvasCoords(e.clientX, e.clientY);
     if (!coords) return;
@@ -482,7 +484,7 @@ export default function Canvas({
 
   // Handle mouse leave - finish drawing if in progress
   const handleMouseLeave = () => {
-    if (isDrawing && startPos && selectedShape && selectedShape.type !== "text") {
+    if (isDrawing && startPos && selectedShape && selectedShape.type !== "text" && !isDragging) {
       // Use the last known position or a default position
       const endPos = { x: startPos.x, y: startPos.y };
       
@@ -625,6 +627,7 @@ export default function Canvas({
         onMouseMove={onMouseMove || handleMouseMove}
         onMouseUp={onMouseUp || handleMouseUp}
         onMouseLeave={onMouseLeave || handleMouseLeave}
+        onWheel={onWheel}
       />
     </div>
   );

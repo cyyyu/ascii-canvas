@@ -10,11 +10,45 @@
   - The same request repeatedly occurs (asking to fix something again and again)
 - Note any code changes made during each conversation
 - Name files as `num-{conversation summary}.md` where num is 1 larger than the latest
-- Always ask for confirmation before creating the conversation file
+- **ALWAYS ask for confirmation before creating the conversation file**
 - Start numbering from 1 for the first conversation
+
+## Conversation File Format
+Follow this exact structure for all conversation files:
+```
+# Conversation X: [Title]
+
+**Date**: [Date]  
+**Participants**: Chuang, Cursor
+
+## Full Conversation
+[Include the actual conversation with user messages and assistant responses]
+
+## Code Changes Made
+[Detailed list of changes by file]
+
+## Technical Challenges Solved
+[Problems encountered and solutions implemented]
+
+## Features Implemented
+[Checklist of completed features]
+
+## Files Modified
+[List of files that were changed]
+```
 
 ## Project Context
 - This is an ASCII Canvas project with Next.js
 - Main components: Canvas, CanvasContainer, CanvasToolbar, Sidebar
 - Uses TypeScript and modern React patterns
-- Use bun for package management (bun add, bun install, etc.) 
+- Use bun for package management (bun add, bun install, etc.)
+- Uses Zustand for state management
+- Uses shadcn/ui for UI components
+
+## Development Guidelines
+- Always examine existing code before making changes
+- Test functionality after implementing changes
+- Follow TypeScript best practices
+- Maintain consistent code style
+- Document complex logic and state management
+- Handle edge cases and error states 

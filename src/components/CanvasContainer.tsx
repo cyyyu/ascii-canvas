@@ -18,24 +18,83 @@ export default function CanvasContainer() {
   const isDragging = useDragStore((state) => state.isDragging);
   const dragPosition = useDragStore((state) => state.dragPosition);
   const setDragPosition = useDragStore((state) => state.setDragPosition);
+  const isShiftPressed = useDragStore((state) => state.isShiftPressed);
+  const setShiftPressed = useDragStore((state) => state.setShiftPressed);
+  const setDragging = useDragStore((state) => state.setDragging);
+  const wasDraggingBeforeShift = useDragStore((state) => state.wasDraggingBeforeShift);
+  const setWasDraggingBeforeShift = useDragStore((state) => state.setWasDraggingBeforeShift);
   
   // Drag state
   const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
+  // Handle keyboard events for shift key
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Shift" && !isShiftPressed) {
+      setShiftPressed(true);
+      // Remember the current drag state before shift was pressed
+      setWasDraggingBeforeShift(isDragging);
+      // Enter drag mode
+      setDragging(true);
+    }
+  };
+
+  const handleKeyUp = (e: KeyboardEvent) => {
+    if (e.key === "Shift" && isShiftPressed) {
+      setShiftPressed(false);
+      // Restore the previous drag state
+      setDragging(wasDraggingBeforeShift);
+    }
+  };
+
+  // Set up keyboard event listeners
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+    
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [isShiftPressed, setShiftPressed, setDragging, isDragging, wasDraggingBeforeShift, setWasDraggingBeforeShift]);
+
+  // Set up document-level wheel event listener
+  useEffect(() => {
+    const documentWheelHandler = (e: WheelEvent) => {
+      // Only handle wheel events when the target is within our canvas container
+      const container = containerRef.current;
+      if (container && container.contains(e.target as Node)) {
+        // Prevent default scrolling when we're handling the wheel event
+        e.preventDefault();
+        handleWheel(e);
+      }
+    };
+
+    document.addEventListener('wheel', documentWheelHandler, { passive: false });
+    
+    return () => {
+      document.removeEventListener('wheel', documentWheelHandler);
+    };
+  }, [isShiftPressed, isDragging]);
+
   // Handle wheel events for zooming
-  const handleWheel = (e: WheelEvent) => {
-    e.preventDefault();
+  const handleWheel = (e: WheelEvent | React.WheelEvent) => {
+    // Don't call preventDefault() to avoid passive event listener errors
+    // e.preventDefault();
+    // e.stopPropagation();
     
     // Get current scale from store
     const currentScale = useScalingStore.getState().scale;
     
+    // When shift is pressed, use deltaX instead of deltaY for horizontal scrolling
+    const deltaValue = isShiftPressed ? e.deltaX : e.deltaY;
+    
     // Calculate new scale based on wheel delta with better sensitivity
     const zoomSensitivity = 0.001; // Adjust this value to change zoom sensitivity
-    const delta = e.deltaY > 0 ? 1 - (e.deltaY * zoomSensitivity) : 1 + (Math.abs(e.deltaY) * zoomSensitivity);
+    const delta = deltaValue > 0 ? 1 - (deltaValue * zoomSensitivity) : 1 + (Math.abs(deltaValue) * zoomSensitivity);
     const newScale = currentScale * delta;
     
-    // Update scaling
+    // Update scaling - allow zooming even when shift is pressed
     updateScaling(newScale);
   };
 
@@ -124,21 +183,6 @@ export default function CanvasContainer() {
     }
   };
 
-  // Set up wheel event listener with non-passive option
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const wheelHandler = (e: WheelEvent) => handleWheel(e);
-    
-    // Add event listener with non-passive option
-    container.addEventListener('wheel', wheelHandler, { passive: false });
-    
-    return () => {
-      container.removeEventListener('wheel', wheelHandler);
-    };
-  }, [updateScaling]);
-
   // Reset drag position when canvas size or zoom changes
   useEffect(() => {
     setDragPosition({ x: 0, y: 0 });
@@ -157,8 +201,9 @@ export default function CanvasContainer() {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        onWheel={handleWheel}
       >
-        <Canvas />
+        <Canvas onWheel={handleWheel} />
       </div>
       <CanvasToolbar />
     </div>

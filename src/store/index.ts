@@ -101,17 +101,25 @@ export const useShapeStore = create<ShapeStore>((set) => ({
 interface DragStore {
   isDragging: boolean;
   dragPosition: { x: number; y: number };
+  isShiftPressed: boolean;
+  wasDraggingBeforeShift: boolean;
   setDragging: (isDragging: boolean) => void;
   setDragPosition: (position: { x: number; y: number }) => void;
   resetDragPosition: () => void;
+  setShiftPressed: (isPressed: boolean) => void;
+  setWasDraggingBeforeShift: (wasDragging: boolean) => void;
 }
 
 export const useDragStore = create<DragStore>((set) => ({
   isDragging: false,
   dragPosition: { x: 0, y: 0 },
+  isShiftPressed: false,
+  wasDraggingBeforeShift: false,
   setDragging: (isDragging) => set({ isDragging }),
   setDragPosition: (position) => set({ dragPosition: position }),
   resetDragPosition: () => set({ dragPosition: { x: 0, y: 0 } }),
+  setShiftPressed: (isPressed) => set({ isShiftPressed: isPressed }),
+  setWasDraggingBeforeShift: (wasDragging) => set({ wasDraggingBeforeShift: wasDragging }),
 }));
 
 interface CanvasSizeStore {
