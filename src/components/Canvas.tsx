@@ -72,7 +72,7 @@ export default function Canvas() {
   };
 
   // Handle wheel events for zooming
-  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+  const handleWheel = (e: WheelEvent) => {
     e.preventDefault();
     
     // Get current scale from store
@@ -658,6 +658,21 @@ export default function Canvas() {
     }
   };
 
+  // Set up wheel event listener with non-passive option
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const wheelHandler = (e: WheelEvent) => handleWheel(e);
+    
+    // Add event listener with non-passive option
+    canvas.addEventListener('wheel', wheelHandler, { passive: false });
+    
+    return () => {
+      canvas.removeEventListener('wheel', wheelHandler);
+    };
+  }, [updateScaling]);
+
   return (
     <div 
       ref={containerRef}
@@ -679,7 +694,6 @@ export default function Canvas() {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
-        onWheel={handleWheel}
       />
     </div>
   );
