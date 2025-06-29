@@ -2,19 +2,19 @@
 
 <div align="center">
 
-A modern, interactive ASCII art creation tool built with Next.js and TypeScript. Create beautiful ASCII graphics using a variety of shapes, layers, and real-time editing capabilities.
-
-**🚀 Fully AI-Implemented**: Apart from initialization, this entire product was built using natural language conversations in Cursor. All development decisions, code changes, and feature implementations were guided through AI-assisted pair programming.
-
-**📚 Complete Development History**: Every line of source code can be traced back to conversations in the `@/conversations` folder, documenting the entire development journey from concept to completion.
+A modern, interactive ASCII art creation tool built with Next.js and TypeScript. Create beautiful ASCII graphics using a variety of shapes, layers, and real-time editing capabilities. This project showcases the power of AI-assisted development, with every feature implemented through natural language conversations and complete development traceability.
 
 </div>
 
 <div align="center">
 
-![ASCII Canvas Demo](https://github.com/user-attachments/assets/b178590c-b9ee-4713-af6c-87ea1f49c03a)
+<https://github.com/user-attachments/assets/b178590c-b9ee-4713-af6c-87ea1f49c03a>
 
 </div>
+
+**🚀 Fully AI-Implemented**: Apart from initialization, this entire product was built using natural language conversations in Cursor. All development decisions, code changes, and feature implementations were guided through AI-assisted pair programming.
+
+**📚 Complete Development History**: Every line of source code can be traced back to conversations in the `@/conversations` folder, documenting the entire development journey from concept to completion.
 
 ## ✨ Features
 
