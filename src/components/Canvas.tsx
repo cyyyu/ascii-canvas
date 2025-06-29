@@ -1,16 +1,11 @@
 "use client";
 
-import { useLayersStore, useShapeStore, useDragStore } from "@/store";
+import { useLayersStore, useShapeStore, useDragStore, useScalingStore } from "@/store";
 import { useEffect, useRef, useState } from "react";
 import {
   CANVAS_ROWS,
   CANVAS_COLS,
-  CELL_WIDTH,
-  CELL_HEIGHT,
 } from "@/lib/constants";
-
-const CANVAS_WIDTH = CANVAS_COLS * CELL_WIDTH;
-const CANVAS_HEIGHT = CANVAS_ROWS * CELL_HEIGHT;
 
 // ASCII characters for different shapes
 const SHAPE_CHARS = {
@@ -40,6 +35,9 @@ export default function Canvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const selectedShape = useShapeStore((state) => state.selectedShape);
   
+  // Scaling functionality
+  const { cellWidth, cellHeight, fontSize, updateScaling } = useScalingStore();
+  
   // Drag functionality
   const isDragging = useDragStore((state) => state.isDragging);
   const dragPosition = useDragStore((state) => state.dragPosition);
@@ -63,14 +61,30 @@ export default function Canvas() {
     if (!rect) return null;
 
     // Convert mouse position to canvas coordinates
-    const x = Math.floor((clientX - rect.left) / CELL_WIDTH);
-    const y = Math.floor((clientY - rect.top) / CELL_HEIGHT);
+    const x = Math.floor((clientX - rect.left) / cellWidth);
+    const y = Math.floor((clientY - rect.top) / cellHeight);
 
     // Clamp coordinates to canvas bounds
     const clampedX = Math.max(0, Math.min(x, CANVAS_COLS - 1));
     const clampedY = Math.max(0, Math.min(y, CANVAS_ROWS - 1));
 
     return { x: clampedX, y: clampedY };
+  };
+
+  // Handle wheel events for zooming
+  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    
+    // Get current scale from store
+    const currentScale = useScalingStore.getState().scale;
+    
+    // Calculate new scale based on wheel delta with better sensitivity
+    const zoomSensitivity = 0.001; // Adjust this value to change zoom sensitivity
+    const delta = e.deltaY > 0 ? 1 - (e.deltaY * zoomSensitivity) : 1 + (Math.abs(e.deltaY) * zoomSensitivity);
+    const newScale = currentScale * delta;
+    
+    // Update scaling
+    updateScaling(newScale);
   };
 
   // Find next available position for text with collision detection
@@ -372,8 +386,8 @@ export default function Canvas() {
       if (containerRect) {
         const containerWidth = containerRect.width;
         const containerHeight = containerRect.height;
-        const canvasWidth = CANVAS_WIDTH;
-        const canvasHeight = CANVAS_HEIGHT;
+        const canvasWidth = CANVAS_COLS * cellWidth;
+        const canvasHeight = CANVAS_ROWS * cellHeight;
         
         // Constrain X: when dragged left, right edge can touch middle; when dragged right, left edge can touch middle
         const minX = -canvasWidth / 2;
@@ -401,9 +415,11 @@ export default function Canvas() {
     if (!ctx) return;
 
     // Clear and redraw existing layers
-    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    const canvasWidth = CANVAS_COLS * cellWidth;
+    const canvasHeight = CANVAS_ROWS * cellHeight;
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     // Draw cell grid
     drawCellGrid(ctx);
@@ -414,13 +430,13 @@ export default function Canvas() {
       row.forEach((cell, colIndex) => {
         if (cell !== " ") {
           ctx.fillStyle = "#000000";
-          ctx.font = `${CELL_HEIGHT}px monospace`;
+          ctx.font = `${fontSize}px monospace`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText(
             cell, 
-            colIndex * CELL_WIDTH + CELL_WIDTH / 2, 
-            rowIndex * CELL_HEIGHT + CELL_HEIGHT / 2
+            colIndex * cellWidth + cellWidth / 2, 
+            rowIndex * cellHeight + cellHeight / 2
           );
         }
       });
@@ -462,8 +478,8 @@ export default function Canvas() {
         if (cell !== " ") {
           ctx.fillText(
             cell, 
-            colIndex * CELL_WIDTH + CELL_WIDTH / 2, 
-            rowIndex * CELL_HEIGHT + CELL_HEIGHT / 2
+            colIndex * cellWidth + cellWidth / 2, 
+            rowIndex * cellHeight + cellHeight / 2
           );
         }
       });
@@ -561,9 +577,11 @@ export default function Canvas() {
     if (!ctx) return;
 
     // Clear the canvas
-    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    const canvasWidth = CANVAS_COLS * cellWidth;
+    const canvasHeight = CANVAS_ROWS * cellHeight;
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     // Draw cell grid
     drawCellGrid(ctx);
@@ -574,13 +592,13 @@ export default function Canvas() {
       row.forEach((cell, colIndex) => {
         if (cell !== " ") {
           ctx.fillStyle = "#000000";
-          ctx.font = `${CELL_HEIGHT}px monospace`;
+          ctx.font = `${fontSize}px monospace`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText(
             cell, 
-            colIndex * CELL_WIDTH + CELL_WIDTH / 2, 
-            rowIndex * CELL_HEIGHT + CELL_HEIGHT / 2
+            colIndex * cellWidth + cellWidth / 2, 
+            rowIndex * cellHeight + cellHeight / 2
           );
         }
       });
@@ -595,8 +613,8 @@ export default function Canvas() {
           if (cell !== " ") {
             ctx.fillText(
               cell, 
-              colIndex * CELL_WIDTH + CELL_WIDTH / 2, 
-              rowIndex * CELL_HEIGHT + CELL_HEIGHT / 2
+              colIndex * cellWidth + cellWidth / 2, 
+              rowIndex * cellHeight + cellHeight / 2
             );
           }
         });
@@ -607,32 +625,35 @@ export default function Canvas() {
     if (selectedShape?.type === "text" && cursorPos) {
       ctx.fillStyle = "#0000ff";
       ctx.fillRect(
-        cursorPos.x * CELL_WIDTH + CELL_WIDTH / 2 - 1,
-        cursorPos.y * CELL_HEIGHT + CELL_HEIGHT / 2 - CELL_HEIGHT / 2,
+        cursorPos.x * cellWidth + cellWidth / 2 - 1,
+        cursorPos.y * cellHeight + cellHeight / 2 - cellHeight / 2,
         2,
-        CELL_HEIGHT
+        cellHeight
       );
     }
-  }, [layers, selectedShape, cursorPos, hoveredLayerId]);
+  }, [layers, selectedShape, cursorPos, hoveredLayerId, cellWidth, cellHeight, fontSize]);
 
   // Draw cell grid with light gray borders
   const drawCellGrid = (ctx: CanvasRenderingContext2D) => {
     ctx.strokeStyle = "#e5e7eb"; // Light gray
     ctx.lineWidth = 1;
     
+    const canvasWidth = CANVAS_COLS * cellWidth;
+    const canvasHeight = CANVAS_ROWS * cellHeight;
+    
     // Draw vertical lines
     for (let x = 0; x <= CANVAS_COLS; x++) {
       ctx.beginPath();
-      ctx.moveTo(x * CELL_WIDTH, 0);
-      ctx.lineTo(x * CELL_WIDTH, CANVAS_HEIGHT);
+      ctx.moveTo(x * cellWidth, 0);
+      ctx.lineTo(x * cellWidth, canvasHeight);
       ctx.stroke();
     }
     
     // Draw horizontal lines
     for (let y = 0; y <= CANVAS_ROWS; y++) {
       ctx.beginPath();
-      ctx.moveTo(0, y * CELL_HEIGHT);
-      ctx.lineTo(CANVAS_WIDTH, y * CELL_HEIGHT);
+      ctx.moveTo(0, y * cellHeight);
+      ctx.lineTo(canvasWidth, y * cellHeight);
       ctx.stroke();
     }
   };
@@ -648,8 +669,8 @@ export default function Canvas() {
     >
       <canvas
         ref={canvasRef}
-        width={CANVAS_WIDTH}
-        height={CANVAS_HEIGHT}
+        width={CANVAS_COLS * cellWidth}
+        height={CANVAS_ROWS * cellHeight}
         className="bg-gray-100 border border-gray-300"
         style={{ 
           cursor: isDragging ? "grab" : "crosshair"
@@ -658,6 +679,7 @@ export default function Canvas() {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        onWheel={handleWheel}
       />
     </div>
   );

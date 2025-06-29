@@ -1,9 +1,9 @@
 "use client";
 
-import { useShapeStore, useDragStore, useLayersStore, useCopyStore } from "@/store";
+import { useShapeStore, useDragStore, useLayersStore, useCopyStore, useScalingStore } from "@/store";
 import type { Shape } from "@/store";
 import { Button } from "@/components/ui/button";
-import { Square, Circle, Triangle, Type, Minus, Hand, Copy } from "lucide-react";
+import { Square, Circle, Triangle, Type, Minus, Hand, Copy, ZoomIn, ZoomOut } from "lucide-react";
 import { toast } from "sonner";
 
 export default function CanvasToolbar() {
@@ -17,6 +17,9 @@ export default function CanvasToolbar() {
 
   const layers = useLayersStore((state) => state.layers);
   const copyCanvasContent = useCopyStore((state) => state.copyCanvasContent);
+
+  // Scaling functionality
+  const { fontSize, updateScaling } = useScalingStore();
 
   const getShapeIcon = (shapeType: string) => {
     switch (shapeType.toLowerCase()) {
@@ -75,6 +78,16 @@ export default function CanvasToolbar() {
     }
   };
 
+  const handleZoomIn = () => {
+    const currentScale = useScalingStore.getState().scale;
+    updateScaling(currentScale * 1.1);
+  };
+
+  const handleZoomOut = () => {
+    const currentScale = useScalingStore.getState().scale;
+    updateScaling(currentScale * 0.9);
+  };
+
   return (
     <div className="flex h-12 w-full items-center justify-between bg-gray-200 p-2">
       <div className="flex space-x-2">
@@ -98,7 +111,28 @@ export default function CanvasToolbar() {
           <span className="ml-0.5">drag</span>
         </Button>
       </div>
-      <div className="flex space-x-2">
+      <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleZoomOut}
+            title="Zoom Out"
+          >
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <div className="px-2 py-1 text-sm font-mono bg-white rounded border">
+            {fontSize}px
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleZoomIn}
+            title="Zoom In"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+        </div>
         <Button
           variant="secondary"
           size="sm"

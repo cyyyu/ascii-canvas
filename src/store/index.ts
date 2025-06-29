@@ -131,3 +131,40 @@ export const useCopyStore = create<CopyStore>((set, get) => ({
     await copyToClipboard(textContent);
   },
 }));
+
+interface ScalingStore {
+  scale: number;
+  cellWidth: number;
+  cellHeight: number;
+  fontSize: number;
+  setScale: (scale: number) => void;
+  updateScaling: (scale: number) => void;
+}
+
+export const useScalingStore = create<ScalingStore>((set) => ({
+  scale: 1,
+  cellWidth: 10, // Default from constants
+  cellHeight: 12, // Default from constants
+  fontSize: 12, // Default font size
+  setScale: (scale) => set({ scale }),
+  updateScaling: (scale) => {
+    // Clamp scale between 0.5 and 1.8 (10px to 18px font size)
+    const clampedScale = Math.max(0.5, Math.min(1.8, scale));
+    
+    // Calculate new dimensions based on scale
+    const baseCellWidth = 10;
+    const baseCellHeight = 12;
+    const baseFontSize = 12;
+    
+    const newCellWidth = Math.round(baseCellWidth * clampedScale);
+    const newCellHeight = Math.round(baseCellHeight * clampedScale);
+    const newFontSize = Math.round(baseFontSize * clampedScale);
+    
+    set({
+      scale: clampedScale,
+      cellWidth: newCellWidth,
+      cellHeight: newCellHeight,
+      fontSize: newFontSize,
+    });
+  },
+}));
