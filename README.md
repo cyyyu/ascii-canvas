@@ -8,6 +8,8 @@ A modern, interactive ASCII art creation tool built with Next.js and TypeScript.
 
 <div align="center">
 
+**🌐 Live Demo**: [https://ascii-canvas.vercel.app/](https://ascii-canvas.vercel.app/)
+
 <https://github.com/user-attachments/assets/b178590c-b9ee-4713-af6c-87ea1f49c03a>
 
 </div>
