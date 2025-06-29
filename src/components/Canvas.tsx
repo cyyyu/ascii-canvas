@@ -27,7 +27,19 @@ const SHAPE_CHARS = {
   },
 };
 
-export default function Canvas() {
+interface CanvasProps {
+  onMouseDown?: (e: React.MouseEvent) => void;
+  onMouseMove?: (e: React.MouseEvent) => void;
+  onMouseUp?: (e: React.MouseEvent) => void;
+  onMouseLeave?: () => void;
+}
+
+export default function Canvas({ 
+  onMouseDown, 
+  onMouseMove, 
+  onMouseUp, 
+  onMouseLeave 
+}: CanvasProps) {
   const layers = useLayersStore((state) => state.layers);
   const hoveredLayerId = useLayersStore((state) => state.hoveredLayerId);
   const addLayer = useLayersStore((state) => state.addLayer);
@@ -36,17 +48,12 @@ export default function Canvas() {
   const selectedShape = useShapeStore((state) => state.selectedShape);
   
   // Scaling functionality
-  const { cellWidth, cellHeight, fontSize, updateScaling } = useScalingStore();
+  const { cellWidth, cellHeight, fontSize } = useScalingStore();
   
   // Drag functionality
   const isDragging = useDragStore((state) => state.isDragging);
   const dragPosition = useDragStore((state) => state.dragPosition);
-  const setDragPosition = useDragStore((state) => state.setDragPosition);
   const containerRef = useRef<HTMLDivElement>(null);
-  
-  // Drag state
-  const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(
@@ -69,22 +76,6 @@ export default function Canvas() {
     const clampedY = Math.max(0, Math.min(y, CANVAS_ROWS - 1));
 
     return { x: clampedX, y: clampedY };
-  };
-
-  // Handle wheel events for zooming
-  const handleWheel = (e: WheelEvent) => {
-    e.preventDefault();
-    
-    // Get current scale from store
-    const currentScale = useScalingStore.getState().scale;
-    
-    // Calculate new scale based on wheel delta with better sensitivity
-    const zoomSensitivity = 0.001; // Adjust this value to change zoom sensitivity
-    const delta = e.deltaY > 0 ? 1 - (e.deltaY * zoomSensitivity) : 1 + (Math.abs(e.deltaY) * zoomSensitivity);
-    const newScale = currentScale * delta;
-    
-    // Update scaling
-    updateScaling(newScale);
   };
 
   // Find next available position for text with collision detection
@@ -119,6 +110,7 @@ export default function Canvas() {
         canvas: Array.from({ length: CANVAS_ROWS }, () =>
           Array.from({ length: CANVAS_COLS }, () => " ")
         ),
+        shapeType: "text",
       };
       addLayer(textLayer);
       setTextLayerId(textLayer.id);
@@ -351,13 +343,6 @@ export default function Canvas() {
 
   // Handle mouse down
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    // If in drag mode, handle canvas dragging instead of drawing
-    if (isDragging) {
-      setIsDraggingCanvas(true);
-      setDragStart({ x: e.clientX - dragPosition.x, y: e.clientY - dragPosition.y });
-      return;
-    }
-    
     const coords = getCanvasCoords(e.clientX, e.clientY);
     if (!coords) return;
 
@@ -376,34 +361,6 @@ export default function Canvas() {
 
   // Handle mouse move
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    // If in drag mode, handle canvas dragging
-    if (isDragging && isDraggingCanvas) {
-      const newX = e.clientX - dragStart.x;
-      const newY = e.clientY - dragStart.y;
-      
-      // Apply constraints to keep at least half the canvas visible
-      const containerRect = containerRef.current?.getBoundingClientRect();
-      if (containerRect) {
-        const containerWidth = containerRect.width;
-        const containerHeight = containerRect.height;
-        const canvasWidth = CANVAS_COLS * cellWidth;
-        const canvasHeight = CANVAS_ROWS * cellHeight;
-        
-        // Constrain X: when dragged left, right edge can touch middle; when dragged right, left edge can touch middle
-        const minX = -canvasWidth / 2;
-        const maxX = containerWidth - canvasWidth / 2;
-        const constrainedX = Math.max(minX, Math.min(maxX, newX));
-        
-        // Constrain Y: same logic
-        const minY = -canvasHeight / 2;
-        const maxY = containerHeight - canvasHeight / 2;
-        const constrainedY = Math.max(minY, Math.min(maxY, newY));
-        
-        setDragPosition({ x: constrainedX, y: constrainedY });
-      }
-      return;
-    }
-    
     // Handle drawing preview
     if (!isDrawing || !startPos || !selectedShape || selectedShape.type === "text") return;
 
@@ -488,12 +445,6 @@ export default function Canvas() {
 
   // Handle mouse up
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    // If in drag mode, stop canvas dragging
-    if (isDragging && isDraggingCanvas) {
-      setIsDraggingCanvas(false);
-      return;
-    }
-    
     if (!isDrawing || !startPos || !selectedShape || selectedShape.type === "text") return;
 
     const coords = getCanvasCoords(e.clientX, e.clientY);
@@ -522,6 +473,7 @@ export default function Canvas() {
     const newLayer = {
       id: `layer-${Date.now()}`,
       canvas: newCanvas,
+      shapeType: selectedShape.type,
     };
     addLayer(newLayer);
 
@@ -531,12 +483,6 @@ export default function Canvas() {
 
   // Handle mouse leave - finish drawing if in progress
   const handleMouseLeave = () => {
-    // If in drag mode, stop canvas dragging
-    if (isDragging && isDraggingCanvas) {
-      setIsDraggingCanvas(false);
-      return;
-    }
-    
     if (isDrawing && startPos && selectedShape && selectedShape.type !== "text") {
       // Use the last known position or a default position
       const endPos = { x: startPos.x, y: startPos.y };
@@ -564,6 +510,7 @@ export default function Canvas() {
       const newLayer = {
         id: `layer-${Date.now()}`,
         canvas: newCanvas,
+        shapeType: selectedShape.type,
       };
       addLayer(newLayer);
 
@@ -658,21 +605,6 @@ export default function Canvas() {
     }
   };
 
-  // Set up wheel event listener with non-passive option
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const wheelHandler = (e: WheelEvent) => handleWheel(e);
-    
-    // Add event listener with non-passive option
-    canvas.addEventListener('wheel', wheelHandler, { passive: false });
-    
-    return () => {
-      canvas.removeEventListener('wheel', wheelHandler);
-    };
-  }, [updateScaling]);
-
   return (
     <div 
       ref={containerRef}
@@ -690,10 +622,10 @@ export default function Canvas() {
         style={{ 
           cursor: isDragging ? "grab" : "crosshair"
         }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
+        onMouseDown={onMouseDown || handleMouseDown}
+        onMouseMove={onMouseMove || handleMouseMove}
+        onMouseUp={onMouseUp || handleMouseUp}
+        onMouseLeave={onMouseLeave || handleMouseLeave}
       />
     </div>
   );

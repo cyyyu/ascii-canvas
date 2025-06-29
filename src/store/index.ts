@@ -4,6 +4,7 @@ import { CANVAS_ROWS, CANVAS_COLS } from "@/lib/constants";
 interface Layer {
   id: string;
   canvas: string[][];
+  shapeType: "rectangle" | "circle" | "line" | "text";
 }
 
 interface LayersStore {
@@ -12,6 +13,7 @@ interface LayersStore {
   addLayer: (layer: Layer) => void;
   removeLayer: (id: string) => void;
   updateLayer: (id: string, canvas: string[][]) => void;
+  updateLayerShape: (id: string, shapeType: "rectangle" | "circle" | "line" | "text") => void;
   reorderLayers: (fromIndex: number, toIndex: number) => void;
   clearAllLayers: () => void;
   setHoveredLayer: (id: string | null) => void;
@@ -29,6 +31,12 @@ export const useLayersStore = create<LayersStore>((set) => ({
     set((state) => ({
       layers: state.layers.map((layer) =>
         layer.id === id ? { ...layer, canvas } : layer
+      ),
+    })),
+  updateLayerShape: (id, shapeType) =>
+    set((state) => ({
+      layers: state.layers.map((layer) =>
+        layer.id === id ? { ...layer, shapeType } : layer
       ),
     })),
   reorderLayers: (fromIndex, toIndex) =>

@@ -23,7 +23,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 interface SortableLayerItemProps {
-  layer: { id: string; canvas: string[][] };
+  layer: { id: string; canvas: string[][]; shapeType: "rectangle" | "circle" | "line" | "text" };
   onRemove: (id: string) => void;
   index: number;
 }
@@ -46,6 +46,25 @@ function SortableLayerItem({ layer, onRemove, index }: SortableLayerItemProps) {
     opacity: isDragging ? 0.5 : 1,
   };
 
+  // Function to get shape icon/emoji
+  const getShapeIcon = (shapeType: string) => {
+    switch (shapeType) {
+      case "rectangle":
+        return "⬜";
+      case "circle":
+        return "⭕";
+      case "line":
+        return "➖";
+      case "text":
+        return "📝";
+      default:
+        return "❓";
+    }
+  };
+
+  // Get shape type with fallback for existing layers
+  const shapeType = layer.shapeType || "unknown";
+
   return (
     <li
       ref={setNodeRef}
@@ -60,7 +79,8 @@ function SortableLayerItem({ layer, onRemove, index }: SortableLayerItemProps) {
         {...listeners}
       >
         <span className="text-gray-500 text-sm font-mono mr-2 flex-shrink-0">{index}</span>
-        <span className="text-gray-800 truncate">{layer.id}</span>
+        <span className="text-gray-600 text-sm mr-2 flex-shrink-0">{getShapeIcon(shapeType)}</span>
+        <span className="text-gray-800 truncate capitalize">{shapeType}</span>
       </div>
       <Button
         variant="outline"
@@ -100,7 +120,7 @@ export default function Sidebar() {
 
   return (
     <div className="flex h-full w-64 flex-col p-3 text-white shrink-0">
-      <div className="mb-4 flex justify-center">
+      <div className="mb-4 flex justify-center flex-shrink-0">
         <div className="inline-flex items-center px-3 py-2 rounded-lg shadow-lg bg-gray-100" style={{
           backgroundImage: `
             linear-gradient(rgba(156, 163, 175, 0.15) 1px, transparent 1px),
@@ -113,20 +133,20 @@ export default function Sidebar() {
         </div>
       </div>
       
-      <div className="flex-1 bg-white rounded-lg p-3 flex flex-col shadow-sm border border-gray-200">
-        <h2 className="mb-4 text-base font-medium text-gray-700">Layers</h2>
+      <div className="flex-1 bg-white rounded-lg p-3 flex flex-col shadow-sm border border-gray-200 min-h-0">
+        <h2 className="mb-4 text-base font-medium text-gray-700 flex-shrink-0">Layers</h2>
         
-        <div className="flex-1 min-h-0">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={layers.map(layer => layer.id)}
+            strategy={verticalListSortingStrategy}
           >
-            <SortableContext
-              items={layers.map(layer => layer.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <ul className="space-y-2 overflow-y-auto max-h-full">
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <ul className="space-y-2">
                 {layers.map((layer, index) => (
                   <SortableLayerItem
                     key={layer.id}
@@ -136,14 +156,14 @@ export default function Sidebar() {
                   />
                 ))}
               </ul>
-            </SortableContext>
-          </DndContext>
-        </div>
+            </div>
+          </SortableContext>
+        </DndContext>
         
         <Button
           variant="secondary"
           size="sm"
-          className="mt-4 hover:bg-red-500 hover:text-white"
+          className="mt-4 hover:bg-red-500 hover:text-white flex-shrink-0"
           onClick={clearAllLayers}
           disabled={layers.length === 0}
         >
