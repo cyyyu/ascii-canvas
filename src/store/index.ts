@@ -41,7 +41,7 @@ export const useLayersStore = create<LayersStore>((set) => ({
   setHoveredLayer: (id) => set({ hoveredLayerId: id }),
 }));
 
-interface Shape {
+export interface Shape {
   id: string;
   type: "rectangle" | "circle" | "line" | "text";
 }
@@ -65,4 +65,20 @@ export const useShapeStore = create<ShapeStore>((set) => ({
   selectShape: (shape) => set({ selectedShape: shape }),
   unselectShape: () => set({ selectedShape: null }),
   shapes: defaultShapes,
+}));
+
+interface DragStore {
+  isDragging: boolean;
+  dragPosition: { x: number; y: number };
+  setDragging: (isDragging: boolean) => void;
+  setDragPosition: (position: { x: number; y: number }) => void;
+  resetDragPosition: () => void;
+}
+
+export const useDragStore = create<DragStore>((set) => ({
+  isDragging: false,
+  dragPosition: { x: 0, y: 0 },
+  setDragging: (isDragging) => set({ isDragging }),
+  setDragPosition: (position) => set({ dragPosition: position }),
+  resetDragPosition: () => set({ dragPosition: { x: 0, y: 0 } }),
 }));

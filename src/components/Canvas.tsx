@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayersStore, useShapeStore } from "@/store";
+import { useLayersStore, useShapeStore, useDragStore } from "@/store";
 import { useEffect, useRef, useState } from "react";
 import {
   CANVAS_ROWS,
@@ -11,10 +11,6 @@ import {
 
 const CANVAS_WIDTH = CANVAS_COLS * CELL_WIDTH;
 const CANVAS_HEIGHT = CANVAS_ROWS * CELL_HEIGHT;
-
-console.log(
-  `Canvas dimensions: ${CANVAS_WIDTH}x${CANVAS_HEIGHT}, Cell size: ${CELL_WIDTH}x${CELL_HEIGHT}`
-);
 
 // ASCII characters for different shapes
 const SHAPE_CHARS = {
@@ -43,6 +39,16 @@ export default function Canvas() {
   const updateLayer = useLayersStore((state) => state.updateLayer);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const selectedShape = useShapeStore((state) => state.selectedShape);
+  
+  // Drag functionality
+  const isDragging = useDragStore((state) => state.isDragging);
+  const dragPosition = useDragStore((state) => state.dragPosition);
+  const setDragPosition = useDragStore((state) => state.setDragPosition);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Drag state
+  const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(
@@ -63,13 +69,6 @@ export default function Canvas() {
     // Clamp coordinates to canvas bounds
     const clampedX = Math.max(0, Math.min(x, CANVAS_COLS - 1));
     const clampedY = Math.max(0, Math.min(y, CANVAS_ROWS - 1));
-
-    console.log(
-      `Mouse: (${clientX}, ${clientY}) -> Canvas: (${clampedX}, ${clampedY})`
-    );
-    console.log(
-      `Canvas rect: left=${rect.left}, top=${rect.top}, width=${rect.width}, height=${rect.height}`
-    );
 
     return { x: clampedX, y: clampedY };
   };
@@ -338,10 +337,15 @@ export default function Canvas() {
 
   // Handle mouse down
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // If in drag mode, handle canvas dragging instead of drawing
+    if (isDragging) {
+      setIsDraggingCanvas(true);
+      setDragStart({ x: e.clientX - dragPosition.x, y: e.clientY - dragPosition.y });
+      return;
+    }
+    
     const coords = getCanvasCoords(e.clientX, e.clientY);
     if (!coords) return;
-
-    console.log(`Mouse down at canvas position: (${coords.x}, ${coords.y})`);
 
     // Handle text mode
     if (selectedShape?.type === "text") {
@@ -358,6 +362,35 @@ export default function Canvas() {
 
   // Handle mouse move
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // If in drag mode, handle canvas dragging
+    if (isDragging && isDraggingCanvas) {
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+      
+      // Apply constraints to keep at least half the canvas visible
+      const containerRect = containerRef.current?.getBoundingClientRect();
+      if (containerRect) {
+        const containerWidth = containerRect.width;
+        const containerHeight = containerRect.height;
+        const canvasWidth = CANVAS_WIDTH;
+        const canvasHeight = CANVAS_HEIGHT;
+        
+        // Constrain X: when dragged left, right edge can touch middle; when dragged right, left edge can touch middle
+        const minX = -canvasWidth / 2;
+        const maxX = containerWidth - canvasWidth / 2;
+        const constrainedX = Math.max(minX, Math.min(maxX, newX));
+        
+        // Constrain Y: same logic
+        const minY = -canvasHeight / 2;
+        const maxY = containerHeight - canvasHeight / 2;
+        const constrainedY = Math.max(minY, Math.min(maxY, newY));
+        
+        setDragPosition({ x: constrainedX, y: constrainedY });
+      }
+      return;
+    }
+    
+    // Handle drawing preview
     if (!isDrawing || !startPos || !selectedShape || selectedShape.type === "text") return;
 
     const coords = getCanvasCoords(e.clientX, e.clientY);
@@ -439,14 +472,16 @@ export default function Canvas() {
 
   // Handle mouse up
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // If in drag mode, stop canvas dragging
+    if (isDragging && isDraggingCanvas) {
+      setIsDraggingCanvas(false);
+      return;
+    }
+    
     if (!isDrawing || !startPos || !selectedShape || selectedShape.type === "text") return;
 
     const coords = getCanvasCoords(e.clientX, e.clientY);
     if (!coords) return;
-
-    console.log(
-      `Drawing shape from (${startPos.x}, ${startPos.y}) to (${coords.x}, ${coords.y})`
-    );
 
     // Generate the shape
     let newCanvas: string[][] = [];
@@ -480,14 +515,16 @@ export default function Canvas() {
 
   // Handle mouse leave - finish drawing if in progress
   const handleMouseLeave = () => {
+    // If in drag mode, stop canvas dragging
+    if (isDragging && isDraggingCanvas) {
+      setIsDraggingCanvas(false);
+      return;
+    }
+    
     if (isDrawing && startPos && selectedShape && selectedShape.type !== "text") {
       // Use the last known position or a default position
       const endPos = { x: startPos.x, y: startPos.y };
       
-      console.log(
-        `Mouse left canvas, finishing shape from (${startPos.x}, ${startPos.y}) to (${endPos.x}, ${endPos.y})`
-      );
-
       // Generate the shape
       let newCanvas: string[][] = [];
       switch (selectedShape.type) {
@@ -601,15 +638,27 @@ export default function Canvas() {
   };
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={CANVAS_WIDTH}
-      height={CANVAS_HEIGHT}
-      className="bg-gray-100 border border-gray-300 cursor-crosshair"
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseLeave}
-    />
+    <div 
+      ref={containerRef}
+      className="relative inline-block select-none"
+      style={{
+        transform: `translate(${dragPosition.x}px, ${dragPosition.y}px)`,
+        cursor: isDragging ? "grab" : "default"
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        width={CANVAS_WIDTH}
+        height={CANVAS_HEIGHT}
+        className="bg-gray-100 border border-gray-300"
+        style={{ 
+          cursor: isDragging ? "grab" : "crosshair"
+        }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+      />
+    </div>
   );
 }
