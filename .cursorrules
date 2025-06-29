@@ -4,7 +4,10 @@
 - Save all chat conversations to the `@/conversations` folder
 - Use markdown format for all conversation files
 - Refer to user as 'Chuang:' and assistant as 'Cursor:'
-- Summarize long responses for clarity while maintaining understanding
+- Save the original conversation in full - prioritize completeness over summarization
+- Only summarize when:
+  - A long response is received from the agent (to maintain clarity)
+  - The same request repeatedly occurs (asking to fix something again and again)
 - Note any code changes made during each conversation
 - Name files as `num-{conversation summary}.md` where num is 1 larger than the latest
 - Always ask for confirmation before creating the conversation file
