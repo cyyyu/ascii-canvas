@@ -1,9 +1,10 @@
 "use client";
 
-import { useShapeStore, useDragStore } from "@/store";
+import { useShapeStore, useDragStore, useLayersStore, useCopyStore } from "@/store";
 import type { Shape } from "@/store";
 import { Button } from "@/components/ui/button";
-import { Square, Circle, Triangle, Type, Minus, Hand } from "lucide-react";
+import { Square, Circle, Triangle, Type, Minus, Hand, Copy } from "lucide-react";
+import { toast } from "sonner";
 
 export default function CanvasToolbar() {
   const shapes = useShapeStore((state) => state.shapes);
@@ -13,6 +14,9 @@ export default function CanvasToolbar() {
   
   const isDragging = useDragStore((state) => state.isDragging);
   const setDragging = useDragStore((state) => state.setDragging);
+
+  const layers = useLayersStore((state) => state.layers);
+  const copyCanvasContent = useCopyStore((state) => state.copyCanvasContent);
 
   const getShapeIcon = (shapeType: string) => {
     switch (shapeType.toLowerCase()) {
@@ -56,8 +60,23 @@ export default function CanvasToolbar() {
     }
   };
 
+  const handleCopy = async () => {
+    try {
+      await copyCanvasContent(layers);
+      toast.success("Canvas content copied to clipboard!", {
+        description: "Paste with monospaced font (like Courier) to maintain formatting.",
+        duration: 4000,
+      });
+    } catch (error) {
+      console.error('Failed to copy canvas content:', error);
+      toast.error("Failed to copy canvas content", {
+        description: "Please try again.",
+      });
+    }
+  };
+
   return (
-    <div className="flex h-12 w-full items-center justify-between bg-gray-200 px-3 py-2">
+    <div className="flex h-12 w-full items-center justify-between bg-gray-200 p-2">
       <div className="flex space-x-2">
         {shapes.map((shape) => (
           <Button
@@ -67,7 +86,7 @@ export default function CanvasToolbar() {
             onClick={() => handleShapeSelect(shape)}
           >
             {getShapeIcon(shape.type)}
-            <span className="ml-1">{shape.type}</span>
+            <span className="ml-0.5">{shape.type}</span>
           </Button>
         ))}
         <Button
@@ -76,7 +95,17 @@ export default function CanvasToolbar() {
           onClick={handleDragToggle}
         >
           <Hand className="h-4 w-4" />
-          <span className="ml-1">drag</span>
+          <span className="ml-0.5">drag</span>
+        </Button>
+      </div>
+      <div className="flex space-x-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleCopy}
+        >
+          <Copy className="h-4 w-4" />
+          <span className="ml-0.5">copy</span>
         </Button>
       </div>
     </div>

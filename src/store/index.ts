@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { CANVAS_ROWS, CANVAS_COLS } from "@/lib/constants";
 
 interface Layer {
   id: string;
@@ -81,4 +82,52 @@ export const useDragStore = create<DragStore>((set) => ({
   setDragging: (isDragging) => set({ isDragging }),
   setDragPosition: (position) => set({ dragPosition: position }),
   resetDragPosition: () => set({ dragPosition: { x: 0, y: 0 } }),
+}));
+
+interface CopyStore {
+  copyToClipboard: (text: string) => Promise<void>;
+  copyCanvasContent: (layers: Layer[]) => Promise<void>;
+}
+
+export const useCopyStore = create<CopyStore>((set, get) => ({
+  copyToClipboard: async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
+  },
+  copyCanvasContent: async (layers: Layer[]) => {
+    const { copyToClipboard } = get();
+    
+    // Merge all layers into a single canvas array
+    const mergedCanvas = Array.from({ length: CANVAS_ROWS }, () =>
+      Array.from({ length: CANVAS_COLS }, () => " ")
+    );
+
+    // Process layers in order (older first, newer last)
+    layers.forEach((layer) => {
+      layer.canvas.forEach((row, rowIndex) => {
+        row.forEach((cell, colIndex) => {
+          if (cell !== " ") {
+            mergedCanvas[rowIndex][colIndex] = cell;
+          }
+        });
+      });
+    });
+
+    // Convert canvas array to text
+    const textContent = mergedCanvas
+      .map(row => row.join(''))
+      .join('\n');
+
+    await copyToClipboard(textContent);
+  },
 }));
