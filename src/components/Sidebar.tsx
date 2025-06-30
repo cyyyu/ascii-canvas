@@ -2,7 +2,7 @@
 
 import { useLayersStore } from "@/store";
 import { Button } from "@/components/ui/button";
-import { Trash2, Layers } from "lucide-react";
+import { Trash2, Layers, Github } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -120,7 +120,7 @@ export default function Sidebar() {
 
   return (
     <div className="flex h-full w-64 flex-col p-3 text-white shrink-0">
-      <div className="mb-4 flex justify-center flex-shrink-0">
+      <div className="mb-4 flex justify-between items-center flex-shrink-0">
         <div className="inline-flex items-center px-3 py-2 rounded-lg shadow-lg bg-gray-100" style={{
           backgroundImage: `
             linear-gradient(rgba(156, 163, 175, 0.15) 1px, transparent 1px),
@@ -129,8 +129,17 @@ export default function Sidebar() {
           backgroundSize: '8px 8px',
           backgroundPosition: '4px 4px'
         }}>
-          <span className="text-gray-800 font-black text-xl tracking-tight italic" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>Ascii Canvas</span>
+          <span className="text-gray-800 font-black text-xl tracking-tight italic" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif' }}>Ascii Canvas</span>
         </div>
+        <a
+          href="https://github.com/cyyyu/ascii-canvas"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="View on GitHub"
+          className="ml-2 text-gray-500 hover:text-black transition-colors"
+        >
+          <Github className="w-5 h-5" />
+        </a>
       </div>
       
       <div className="flex-1 bg-white rounded-lg p-3 flex flex-col shadow-sm border border-gray-200 min-h-0">
