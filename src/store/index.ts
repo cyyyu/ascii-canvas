@@ -13,45 +13,74 @@ interface LayersStore {
   addLayer: (layer: Layer) => void;
   removeLayer: (id: string) => void;
   updateLayer: (id: string, canvas: string[][]) => void;
+  updateLayerWithoutSaving: (id: string, canvas: string[][]) => void;
   updateLayerShape: (id: string, shapeType: "rectangle" | "circle" | "line" | "text") => void;
   reorderLayers: (fromIndex: number, toIndex: number) => void;
   clearAllLayers: () => void;
   setHoveredLayer: (id: string | null) => void;
   resizeLayers: (newRows: number, newCols: number) => void;
+  setLayers: (layers: Layer[]) => void;
 }
 
-export const useLayersStore = create<LayersStore>((set) => ({
+export const useLayersStore = create<LayersStore>((set, get) => ({
   layers: [],
   hoveredLayerId: null,
-  addLayer: (layer) => set((state) => ({ layers: [...state.layers, layer] })),
-  removeLayer: (id) =>
-    set((state) => ({
-      layers: state.layers.filter((layer) => layer.id !== id),
-    })),
-  updateLayer: (id, canvas) =>
-    set((state) => ({
-      layers: state.layers.map((layer) =>
+  addLayer: (layer) => {
+    const newState = { layers: [...get().layers, layer] };
+    set(newState);
+    useUndoRedoStore.getState().saveState(newState.layers);
+  },
+  removeLayer: (id) => {
+    const newState = {
+      layers: get().layers.filter((layer) => layer.id !== id),
+    };
+    set(newState);
+    useUndoRedoStore.getState().saveState(newState.layers);
+  },
+  updateLayer: (id, canvas) => {
+    const newState = {
+      layers: get().layers.map((layer) =>
         layer.id === id ? { ...layer, canvas } : layer
       ),
-    })),
-  updateLayerShape: (id, shapeType) =>
-    set((state) => ({
-      layers: state.layers.map((layer) =>
+    };
+    set(newState);
+    useUndoRedoStore.getState().saveState(newState.layers);
+  },
+  updateLayerWithoutSaving: (id, canvas) => {
+    const newState = {
+      layers: get().layers.map((layer) =>
+        layer.id === id ? { ...layer, canvas } : layer
+      ),
+    };
+    set(newState);
+    // Don't save to history - this is for immediate visual updates only
+  },
+  updateLayerShape: (id, shapeType) => {
+    const newState = {
+      layers: get().layers.map((layer) =>
         layer.id === id ? { ...layer, shapeType } : layer
       ),
-    })),
-  reorderLayers: (fromIndex, toIndex) =>
-    set((state) => {
-      const layers = [...state.layers];
-      const [movedLayer] = layers.splice(fromIndex, 1);
-      layers.splice(toIndex, 0, movedLayer);
-      return { layers };
-    }),
-  clearAllLayers: () => set({ layers: [] }),
+    };
+    set(newState);
+    useUndoRedoStore.getState().saveState(newState.layers);
+  },
+  reorderLayers: (fromIndex, toIndex) => {
+    const layers = [...get().layers];
+    const [movedLayer] = layers.splice(fromIndex, 1);
+    layers.splice(toIndex, 0, movedLayer);
+    const newState = { layers };
+    set(newState);
+    useUndoRedoStore.getState().saveState(newState.layers);
+  },
+  clearAllLayers: () => {
+    const newState = { layers: [] };
+    set(newState);
+    useUndoRedoStore.getState().saveState(newState.layers);
+  },
   setHoveredLayer: (id) => set({ hoveredLayerId: id }),
-  resizeLayers: (newRows: number, newCols: number) =>
-    set((state) => ({
-      layers: state.layers.map((layer) => {
+  resizeLayers: (newRows: number, newCols: number) => {
+    const newState = {
+      layers: get().layers.map((layer) => {
         const newCanvas = Array.from({ length: newRows }, () =>
           Array.from({ length: newCols }, () => " ")
         );
@@ -69,7 +98,11 @@ export const useLayersStore = create<LayersStore>((set) => ({
         
         return { ...layer, canvas: newCanvas };
       }),
-    })),
+    };
+    set(newState);
+    useUndoRedoStore.getState().saveState(newState.layers);
+  },
+  setLayers: (layers) => set({ layers }),
 }));
 
 export interface Shape {
@@ -230,6 +263,132 @@ export const useScalingStore = create<ScalingStore>((set) => ({
       cellWidth: newCellWidth,
       cellHeight: newCellHeight,
       fontSize: newFontSize,
+    });
+  },
+}));
+
+interface UndoRedoStore {
+  history: Layer[][];
+  currentIndex: number;
+  maxHistory: number;
+  canUndo: boolean;
+  canRedo: boolean;
+  undoCount: number;
+  redoCount: number;
+  saveState: (layers: Layer[]) => void;
+  undo: () => Layer[] | null;
+  redo: () => Layer[] | null;
+  clearHistory: () => void;
+}
+
+export const useUndoRedoStore = create<UndoRedoStore>((set, get) => ({
+  history: [],
+  currentIndex: -1,
+  maxHistory: 6, // Allow 6 states total (including current) to enable 5 undos
+  canUndo: false,
+  canRedo: false,
+  undoCount: 0,
+  redoCount: 0,
+  saveState: (layers) => {
+    const { history, currentIndex, maxHistory } = get();
+    
+    // Deep clone the layers to avoid reference issues
+    const layersCopy = layers.map(layer => ({
+      ...layer,
+      canvas: layer.canvas.map(row => [...row])
+    }));
+    
+    // If this is the first save and we're saving an empty state, just initialize
+    if (history.length === 0 && layers.length === 0) {
+      set({
+        history: [layersCopy],
+        currentIndex: 0,
+        canUndo: false,
+        canRedo: false,
+        undoCount: 0,
+        redoCount: 0,
+      });
+      return;
+    }
+    
+    // Remove any history after current index (when we save after an undo)
+    const newHistory = history.slice(0, currentIndex + 1);
+    
+    // Add new state
+    newHistory.push(layersCopy);
+    
+    // Keep only the last maxHistory entries (6 total states to allow 5 undos)
+    if (newHistory.length > maxHistory) {
+      newHistory.splice(0, newHistory.length - maxHistory);
+    }
+    
+    const newCurrentIndex = newHistory.length - 1;
+    
+    set({
+      history: newHistory,
+      currentIndex: newCurrentIndex,
+      canUndo: newCurrentIndex > 0,
+      canRedo: false,
+      undoCount: newCurrentIndex,
+      redoCount: 0,
+    });
+  },
+  undo: () => {
+    const { history, currentIndex } = get();
+    
+    if (currentIndex <= 0) {
+      return null;
+    }
+    
+    const newIndex = currentIndex - 1;
+    const previousState = history[newIndex];
+    
+    set({
+      currentIndex: newIndex,
+      canUndo: newIndex > 0,
+      canRedo: true,
+      undoCount: newIndex,
+      redoCount: history.length - 1 - newIndex,
+    });
+    
+    // Return deep copy of the previous state
+    return previousState.map(layer => ({
+      ...layer,
+      canvas: layer.canvas.map(row => [...row])
+    }));
+  },
+  redo: () => {
+    const { history, currentIndex } = get();
+    
+    if (currentIndex >= history.length - 1) {
+      return null;
+    }
+    
+    const newIndex = currentIndex + 1;
+    const nextState = history[newIndex];
+    
+    set({
+      currentIndex: newIndex,
+      canUndo: true,
+      canRedo: newIndex < history.length - 1,
+      undoCount: newIndex,
+      redoCount: history.length - 1 - newIndex,
+    });
+    
+    // Return deep copy of the next state
+    return nextState.map(layer => ({
+      ...layer,
+      canvas: layer.canvas.map(row => [...row])
+    }));
+  },
+  clearHistory: () => {
+    set({
+      history: [],
+      currentIndex: -1,
+      canUndo: false,
+      canRedo: false,
+      undoCount: 0,
+      redoCount: 0,
     });
   },
 }));

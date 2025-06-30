@@ -1,13 +1,14 @@
 "use client";
 
-import { useShapeStore, useDragStore, useLayersStore, useCopyStore, useScalingStore, useCanvasSizeStore } from "@/store";
+import { useShapeStore, useDragStore, useLayersStore, useCopyStore, useScalingStore, useCanvasSizeStore, useUndoRedoStore } from "@/store";
 import type { Shape } from "@/store";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Square, Circle, Triangle, Type, Minus, Hand, Copy, ZoomIn, ZoomOut } from "lucide-react";
+import { Square, Circle, Triangle, Type, Minus, Hand, Copy, ZoomIn, ZoomOut, Undo2, Redo2 } from "lucide-react";
 import { toast } from "sonner";
 import { CANVAS_SIZES } from "@/lib/constants";
+import { useEffect } from "react";
 
 export default function CanvasToolbar() {
   const shapes = useShapeStore((state) => state.shapes);
@@ -20,6 +21,7 @@ export default function CanvasToolbar() {
   const isShiftPressed = useDragStore((state) => state.isShiftPressed);
 
   const layers = useLayersStore((state) => state.layers);
+  const setLayers = useLayersStore((state) => state.setLayers);
   const copyCanvasContent = useCopyStore((state) => state.copyCanvasContent);
 
   // Canvas size functionality
@@ -27,6 +29,9 @@ export default function CanvasToolbar() {
 
   // Scaling functionality
   const { fontSize, updateScaling } = useScalingStore();
+
+  // Undo/Redo functionality
+  const { canUndo, canRedo, undoCount, redoCount, undo, redo } = useUndoRedoStore();
 
   const getShapeIcon = (shapeType: string) => {
     switch (shapeType.toLowerCase()) {
@@ -102,6 +107,50 @@ export default function CanvasToolbar() {
     setCanvasSize(size as keyof typeof CANVAS_SIZES);
   };
 
+  const handleUndo = () => {
+    const previousState = undo();
+    if (previousState) {
+      setLayers(previousState);
+      toast.success("Undone", {
+        description: "Reverted 1 change",
+        duration: 2000,
+      });
+    }
+  };
+
+  const handleRedo = () => {
+    const nextState = redo();
+    if (nextState) {
+      setLayers(nextState);
+      toast.success("Redone", {
+        description: "Applied 1 change",
+        duration: 2000,
+      });
+    }
+  };
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle shortcuts if not in text input mode
+      if (selectedShape?.type === "text") return;
+      
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault();
+        handleRedo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedShape, handleUndo, handleRedo]);
+
   return (
     <TooltipProvider>
       <div className="flex h-12 w-full items-center justify-between bg-gray-200 p-2">
@@ -147,6 +196,32 @@ export default function CanvasToolbar() {
           </Select>
         </div>
         <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleUndo}
+              disabled={!canUndo}
+              title={`Undo (${undoCount} available)`}
+            >
+              <Undo2 className="h-4 w-4" />
+              <span className="ml-1 text-xs font-mono bg-gray-100 px-1 rounded">
+                {undoCount}
+              </span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRedo}
+              disabled={!canRedo}
+              title={`Redo (${redoCount} available)`}
+            >
+              <Redo2 className="h-4 w-4" />
+              <span className="ml-1 text-xs font-mono bg-gray-100 px-1 rounded">
+                {redoCount}
+              </span>
+            </Button>
+          </div>
           <div className="flex items-center space-x-1">
             <Button
               variant="outline"

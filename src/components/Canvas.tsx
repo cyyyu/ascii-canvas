@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayersStore, useShapeStore, useDragStore, useScalingStore, useCanvasSizeStore } from "@/store";
+import { useLayersStore, useShapeStore, useDragStore, useScalingStore, useCanvasSizeStore, useUndoRedoStore } from "@/store";
 import { useEffect, useRef, useState } from "react";
 
 // ASCII characters for different shapes
@@ -41,7 +41,7 @@ export default function Canvas({
   const layers = useLayersStore((state) => state.layers);
   const hoveredLayerId = useLayersStore((state) => state.hoveredLayerId);
   const addLayer = useLayersStore((state) => state.addLayer);
-  const updateLayer = useLayersStore((state) => state.updateLayer);
+  const updateLayerWithoutSaving = useLayersStore((state) => state.updateLayerWithoutSaving);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const selectedShape = useShapeStore((state) => state.selectedShape);
   
@@ -56,12 +56,34 @@ export default function Canvas({
   const dragPosition = useDragStore((state) => state.dragPosition);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Undo/Redo functionality
+  const saveState = useUndoRedoStore((state) => state.saveState);
+  const initializedRef = useRef(false);
+  const textSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(
     null
   );
   const [textLayerId, setTextLayerId] = useState<string | null>(null);
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
+
+  // Initialize undo/redo history with initial empty state
+  useEffect(() => {
+    if (!initializedRef.current) {
+      saveState([]);
+      initializedRef.current = true;
+    }
+  }, [saveState]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (textSaveTimeoutRef.current) {
+        clearTimeout(textSaveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Get canvas coordinates from mouse position
   const getCanvasCoords = (clientX: number, clientY: number) => {
@@ -148,8 +170,19 @@ export default function Canvas({
       setCursorPos(nextPos);
     }
 
-    // Update the text layer
-    updateLayer(textLayer.id, newCanvas);
+    // Update the text layer immediately for visual feedback (without saving to history)
+    updateLayerWithoutSaving(textLayer.id, newCanvas);
+
+    // Debounce the state saving to avoid creating history entries for every character
+    if (textSaveTimeoutRef.current) {
+      clearTimeout(textSaveTimeoutRef.current);
+    }
+    
+    textSaveTimeoutRef.current = setTimeout(() => {
+      // Save the current state to history after a brief delay
+      const currentLayers = useLayersStore.getState().layers;
+      saveState(currentLayers);
+    }, 500); // 500ms delay
   };
 
   // Handle keyboard events
