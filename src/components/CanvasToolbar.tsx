@@ -5,10 +5,10 @@ import type { Shape } from "@/store";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Square, Circle, Triangle, Type, Minus, Hand, Copy, ZoomIn, ZoomOut, Undo2, Redo2 } from "lucide-react";
+import { Square, Circle, Triangle, Type, Minus, Hand, Copy, ZoomIn, ZoomOut, Undo2, Redo2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { CANVAS_SIZES } from "@/lib/constants";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function CanvasToolbar() {
   const shapes = useShapeStore((state) => state.shapes);
@@ -23,6 +23,8 @@ export default function CanvasToolbar() {
   const layers = useLayersStore((state) => state.layers);
   const setLayers = useLayersStore((state) => state.setLayers);
   const copyCanvasContent = useCopyStore((state) => state.copyCanvasContent);
+  const copyCanvasContentWithStyle = useCopyStore((state) => state.copyCanvasContentWithStyle);
+  const [copyStyle, setCopyStyle] = useState<'plain' | 'block' | 'line'>('plain');
 
   // Canvas size functionality
   const { currentSize, setCanvasSize } = useCanvasSizeStore();
@@ -80,9 +82,9 @@ export default function CanvasToolbar() {
 
   const handleCopy = async () => {
     try {
-      await copyCanvasContent(layers);
+      await copyCanvasContentWithStyle(layers, copyStyle);
       toast.success("Canvas content copied to clipboard!", {
-        description: "Paste with monospaced font (like Courier) to maintain formatting.",
+        description: `Copied as ${copyStyle === 'plain' ? 'plain text' : copyStyle === 'block' ? '/* block comment */' : '// line comment'} style.`,
         duration: 4000,
       });
     } catch (error) {
@@ -243,14 +245,26 @@ export default function CanvasToolbar() {
               <ZoomIn className="h-4 w-4" />
             </Button>
           </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleCopy}
-          >
-            <Copy className="h-4 w-4" />
-            <span className="ml-0.5">copy</span>
-          </Button>
+          <div className="flex items-center space-x-1">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleCopy}
+            >
+              <Copy className="h-4 w-4" />
+              <span className="ml-0.5">copy</span>
+            </Button>
+            <Select value={copyStyle} onValueChange={v => setCopyStyle(v as 'plain' | 'block' | 'line')}>
+              <SelectTrigger className="w-8 h-8 p-0 ml-1 flex items-center justify-center" aria-label="Copy style">
+                <ChevronDown className="h-4 w-4" />
+              </SelectTrigger>
+              <SelectContent align="end" className="min-w-[120px]">
+                <SelectItem value="plain">Plain</SelectItem>
+                <SelectItem value="block">/* Block Comment */</SelectItem>
+                <SelectItem value="line">// Line Comment</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
     </TooltipProvider>
