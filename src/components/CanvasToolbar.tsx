@@ -259,8 +259,8 @@ export default function CanvasToolbar() {
               </SelectTrigger>
               <SelectContent align="end" className="min-w-[120px]">
                 <SelectItem value="plain">Plain</SelectItem>
-                <SelectItem value="block">/* Block Comment */</SelectItem>
-                <SelectItem value="line">// Line Comment</SelectItem>
+                <SelectItem value="block">{`/* Block Comment */`}</SelectItem>
+                <SelectItem value="line">{`// Line Comment`}</SelectItem>
               </SelectContent>
             </Select>
           </div>
