@@ -184,6 +184,7 @@ export const useCanvasSizeStore = create<CanvasSizeStore>((set) => ({
 interface CopyStore {
   copyToClipboard: (text: string) => Promise<void>;
   copyCanvasContent: (layers: Layer[]) => Promise<void>;
+  copyCanvasContentWithStyle: (layers: Layer[], style: 'plain' | 'block' | 'line') => Promise<void>;
 }
 
 export const useCopyStore = create<CopyStore>((set, get) => ({
@@ -227,6 +228,31 @@ export const useCopyStore = create<CopyStore>((set, get) => ({
       .join('\n');
 
     await copyToClipboard(textContent);
+  },
+  copyCanvasContentWithStyle: async (layers: Layer[], style: 'plain' | 'block' | 'line') => {
+    const { copyToClipboard } = get();
+    const { canvasRows, canvasCols } = useCanvasSizeStore.getState();
+    // Merge all layers into a single canvas array
+    const mergedCanvas = Array.from({ length: canvasRows }, () =>
+      Array.from({ length: canvasCols }, () => " ")
+    );
+    layers.forEach((layer) => {
+      layer.canvas.forEach((row, rowIndex) => {
+        row.forEach((cell, colIndex) => {
+          if (cell !== " " && rowIndex < canvasRows && colIndex < canvasCols) {
+            mergedCanvas[rowIndex][colIndex] = cell;
+          }
+        });
+      });
+    });
+    const textContent = mergedCanvas.map(row => row.join('')).join('\n');
+    let formatted = textContent;
+    if (style === 'block') {
+      formatted = `/*\n${textContent}\n*/`;
+    } else if (style === 'line') {
+      formatted = textContent.split('\n').map(line => `// ${line}`).join('\n');
+    }
+    await copyToClipboard(formatted);
   },
 }));
 
