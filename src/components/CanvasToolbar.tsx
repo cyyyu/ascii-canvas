@@ -22,7 +22,6 @@ export default function CanvasToolbar() {
 
   const layers = useLayersStore((state) => state.layers);
   const setLayers = useLayersStore((state) => state.setLayers);
-  const copyCanvasContent = useCopyStore((state) => state.copyCanvasContent);
   const copyCanvasContentWithStyle = useCopyStore((state) => state.copyCanvasContentWithStyle);
   const [copyStyle, setCopyStyle] = useState<'plain' | 'block' | 'line'>('plain');
 
